@@ -25,6 +25,10 @@ class ShotInput(Model):
     duration_s: float = Field(default=5, ge=.1, le=120)
     start_asset_id: str | None = None
     end_asset_id: str | None = None
+    model: str = "bytedance/seedance-2.5/us/image-to-video"
+    resolution: Literal["480p", "720p"] = "720p"
+    generate_audio: bool = True
+    bitrate_mode: Literal["standard", "high"] = "standard"
     start_frame: str = Field(default="", max_length=240)
     end_frame: str = Field(default="", max_length=240)
 
@@ -182,7 +186,8 @@ def inspect_document(store, document):
 def _build_motif(campaign, item, brand):
     pid = uuid5(NAMESPACE_URL, f"spotforge:{campaign.id}:{item.key}").hex
     scenes = [Scene(title=s.title, prompt=s.prompt, duration_s=s.duration_s,
-                    mode="start_end", start_asset_id=s.start_asset_id, end_asset_id=s.end_asset_id)
+                    mode="start_end", start_asset_id=s.start_asset_id, end_asset_id=s.end_asset_id,
+                    model=s.model, resolution=s.resolution, generate_audio=s.generate_audio, bitrate_mode=s.bitrate_mode)
               for s in item.shots]
     p = Project(id=pid, title=item.title, brief=item.brief or campaign.brief, script=item.script,
                 recipe="spot", format=item.format or campaign.format, brand_snapshot=brand, scenes=scenes,
@@ -235,7 +240,7 @@ def boundary_frames(store, cid, key, request):
         for aid in request.asset_ids:
             _image(store, aid, p.format)
         if not p.scenes:
-            p.scenes = [Scene(title=f"Szene {i+1}") for i in range(count)]
+            p.scenes = [Scene(title=f"Szene {i+1}", model="bytedance/seedance-2.5/us/image-to-video") for i in range(count)]
         for i, scene in enumerate(p.scenes):
             before = scene.model_dump()
             scene.mode = "start_end"
@@ -307,6 +312,18 @@ def assemble_variants(store, cid, key, request):
         return {"campaign": campaign, "projects": projects}
 
 
+def campaign_timelines(store, campaign):
+    """Derived story time: boundary N ends one shot and starts the next."""
+    timelines = {}
+    for motif in campaign.motifs:
+        project = _project(store, motif.project_id)
+        times = [0.0]
+        for scene in project.scenes:
+            times.append(round(times[-1] + scene.duration_s, 6))
+        timelines[motif.key] = {"boundary_times_s": times, "duration_s": times[-1]}
+    return timelines
+
+
 def export_document(store, campaign):
     motifs = []
     warnings = ["JSON enthält den Produktionsplan und lokale Asset-IDs, keine Mediendateien, Takes, Tonspuren oder Freigaben. Auf einem anderen Rechner Bilder erneut zuordnen."]
@@ -318,6 +335,8 @@ def export_document(store, campaign):
             label = labels.get(scene.id, {})
             shots.append(ShotInput(title=scene.title, prompt=scene.prompt, duration_s=scene.duration_s,
                                    start_asset_id=scene.start_asset_id, end_asset_id=scene.end_asset_id,
+                                   model=scene.model, resolution=scene.resolution, generate_audio=scene.generate_audio,
+                                   bitrate_mode=scene.bitrate_mode,
                                    start_frame=label.get("start_frame", ""), end_frame=label.get("end_frame", "")))
         motifs.append(MotifInput(key=motif.key, title=p.title[:120], brief=p.brief, script=p.script,
                                  format=p.format, brand_id=p.brand_snapshot.id if p.brand_snapshot else None,
@@ -325,7 +344,7 @@ def export_document(store, campaign):
                                  shots=shots, variants=motif.variants))
     return {"document": CampaignInput(title=campaign.title, brief=campaign.brief, format=campaign.format,
                                       brand_id=campaign.brand_id, brand_version=campaign.brand_version, motifs=motifs),
-            "warnings": warnings}
+            "warnings": warnings, "timelines": campaign_timelines(store, campaign)}
 
 
 def create_router(store):
@@ -371,7 +390,8 @@ def create_router(store):
         with store.lock:
             campaign = _read(store, cid)
             ids = {m.project_id for m in campaign.motifs} | {o.project_id for m in campaign.motifs for o in m.outputs}
-            return {**campaign.model_dump(mode="json"), "projects": {pid: _project(store, pid) for pid in ids}}
+            return {**campaign.model_dump(mode="json"), "projects": {pid: _project(store, pid) for pid in ids},
+                    "timelines": campaign_timelines(store, campaign)}
 
     @router.patch("/campaigns/{cid}")
     def update(cid: str, body: dict):

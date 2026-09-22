@@ -192,3 +192,23 @@ def test_export_preserves_changed_motif_format_and_brand(client):
     copy = client.get(f"/api/projects/{imported.json()['motifs'][0]['project_id']}").json()
     assert copy["format"] == landscape
     assert copy["brand_snapshot"]["id"] == brand["id"]
+
+
+def test_model_options_and_derived_timing_survive_campaign_round_trip(client):
+    doc = document()
+    doc["motifs"][0]["shots"][0].update(duration_s=7, resolution="480p", generate_audio=False, bitrate_mode="high")
+    c = client.post("/api/campaigns", json=doc).json()
+    pid = c["motifs"][0]["project_id"]
+    p = client.get(f"/api/projects/{pid}").json()
+    scene = p["scenes"][0]
+    assert scene["model"] == "bytedance/seedance-2.5/us/image-to-video"
+    assert scene["resolution"] == "480p" and scene["generate_audio"] is False
+    exported = client.get(f"/api/campaigns/{c['id']}/export").json()
+    assert exported["timelines"]["pilot"] == {"boundary_times_s": [0, 7, 12], "duration_s": 12}
+    shot = exported["document"]["motifs"][0]["shots"][0]
+    assert shot["model"] == scene["model"] and shot["bitrate_mode"] == "high"
+    reimported = client.post("/api/campaigns", json=exported["document"])
+    assert reimported.status_code == 200, reimported.text
+    client.patch(f"/api/projects/{pid}/scenes/{scene['id']}", json={"duration_s": 4})
+    detail = client.get(f"/api/campaigns/{c['id']}").json()
+    assert detail["timelines"]["pilot"]["boundary_times_s"] == [0, 4, 9]

@@ -161,7 +161,8 @@ def test_shortening_linked_start_only_take_invalidates_and_blocks_boundary(clien
     res = client.patch(f"/api/projects/{p.id}/scenes/{parent.id}", json={"duration_s":3})
     assert res.status_code == 200
     assert res.json()["scenes"][1]["stale"]
-    assert "Übergang" in client.get(f"/api/projects/{p.id}/manifest").json()["detail"]
+    assert res.json()["scenes"][0]["stale"]
+    assert "Eingaben geändert" in client.get(f"/api/projects/{p.id}/manifest").json()["detail"]
 
 
 def test_reorder_preserves_all_scenes_and_rejects_invalid_dependencies(client):
@@ -206,3 +207,21 @@ def test_short_local_clip_cannot_silently_freeze_for_rest_of_scene(client, monke
     res = client.get(f"/api/projects/{p.id}/manifest")
     assert res.status_code == 422
     assert "Clip ist nur 2.00s lang" in res.json()["detail"]
+
+
+@pytest.mark.parametrize("change", [{"resolution": "480p"}, {"generate_audio": False},
+                                    {"bitrate_mode": "high"}, {"duration_s": 7}])
+def test_generated_take_settings_change_invalidates_take_and_descendants(client, change):
+    store = client.app.state.store
+    asset = store.add_asset(image_bytes(), "frame.png", "image", "image/png")
+    take = Take(asset_id=asset.id)
+    scene = Scene(mode="start", model="bytedance/seedance-2.5/us/image-to-video",
+                  takes=[take], selected_take_id=take.id)
+    child = Scene(predecessor_scene_id=scene.id)
+    p = Project(scenes=[scene, child])
+    store.write("projects", p.id, p)
+    response = client.patch(f"/api/projects/{p.id}/scenes/{scene.id}", json=change)
+    assert response.status_code == 200, response.text
+    assert response.json()["scenes"][0]["stale"]
+    assert response.json()["scenes"][1]["stale"]
+    assert response.json()["scenes"][0]["takes"][0]["id"] == take.id

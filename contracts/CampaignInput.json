@@ -161,6 +161,34 @@
           "default": null,
           "title": "End Asset Id"
         },
+        "model": {
+          "default": "bytedance/seedance-2.5/us/image-to-video",
+          "title": "Model",
+          "type": "string"
+        },
+        "resolution": {
+          "default": "720p",
+          "enum": [
+            "480p",
+            "720p"
+          ],
+          "title": "Resolution",
+          "type": "string"
+        },
+        "generate_audio": {
+          "default": true,
+          "title": "Generate Audio",
+          "type": "boolean"
+        },
+        "bitrate_mode": {
+          "default": "standard",
+          "enum": [
+            "standard",
+            "high"
+          ],
+          "title": "Bitrate Mode",
+          "type": "string"
+        },
         "start_frame": {
           "default": "",
           "maxLength": 240,
