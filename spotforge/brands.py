@@ -131,9 +131,16 @@ def create_router(store):
         try:
             with store.lock:
                 current = get_brand(store, brand_id)
+                # A crash after the immutable version write but before updating
+                # the latest pointer may leave an orphan. Preserve it and choose
+                # a fresh number instead of overwriting or blocking future edits.
+                next_version = max([current.version, *(
+                    Brand.model_validate(item).version for item in store.list("brand_versions")
+                    if item.get("id") == brand_id
+                )]) + 1
                 # Accept a full form or a partial update, but own version metadata.
                 payload = {**current.model_dump(), **data, "id": brand_id,
-                           "version": current.version + 1, "created_at": now()}
+                           "version": next_version, "created_at": now()}
                 brand = validate_brand(store, Brand.model_validate(payload))
                 key = f"{brand_id}_{brand.version}"
                 if store.path("brand_versions", key).exists():
