@@ -7,13 +7,17 @@ export const PHASES = [
 ];
 export function motifProgress(project) {
   if (!project) return { label: "Projekt wird geladen", phase: "briefing" };
-  if (project.render?.file && project.gates?.final === "approved")
+  if (project.render?.job_id && project.gates?.final === "approved")
     return { label: "Export freigegeben", phase: "export" };
   if (project.gates?.clips === "approved")
     return { label: "Clips freigegeben", phase: "export" };
   if (
     project.scenes?.length &&
-    project.scenes.every((s) => s.selected_take_id && !s.stale)
+    project.scenes.every(
+      (s) =>
+        (s.selected_take_id || (s.mode === "local" && s.source_asset_id)) &&
+        !s.stale,
+    )
   )
     return { label: "Bereit zur Abnahme", phase: "review" };
   if (project.gates?.storyboard === "approved")

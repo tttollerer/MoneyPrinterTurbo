@@ -80,3 +80,28 @@ test("stale takes do not imply readiness for review", () => {
     "review",
   );
 });
+test("approved current render is recognized by the API job reference", () => {
+  assert.deepEqual(
+    motifProgress({
+      render: { job_id: "render-1", url: "/api/outputs/render-1" },
+      gates: { final: "approved" },
+    }),
+    { label: "Export freigegeben", phase: "export" },
+  );
+});
+test("local selected source is reviewable without creating an artificial take", () => {
+  assert.equal(
+    motifProgress({
+      scenes: [{ mode: "local", source_asset_id: "clip", stale: false }],
+      gates: {},
+    }).phase,
+    "review",
+  );
+  assert.equal(
+    motifProgress({
+      scenes: [{ mode: "start", source_asset_id: "clip", stale: false }],
+      gates: {},
+    }).phase,
+    "storyboard",
+  );
+});
