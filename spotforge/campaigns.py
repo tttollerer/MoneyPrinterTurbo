@@ -258,6 +258,8 @@ def assemble_variants(store, cid, key, request):
             raise HTTPException(409, "Motiv zuerst bis einschließlich Clips freigeben.")
         if not motif.variants:
             raise ValueError("Für dieses Motiv fehlen Zielgruppenfassungen.")
+        if len(source.scenes) >= 100:
+            raise ValueError("Für die Schlusskarte muss eine Szene frei bleiben (höchstens 99 Handlungsszenen).")
         render_manifest(store, source, "http://127.0.0.1")
         for variant in motif.variants:
             if variant.endcard_asset_id:

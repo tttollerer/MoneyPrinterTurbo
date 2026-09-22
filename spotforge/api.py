@@ -558,11 +558,13 @@ def create_app(data_dir=None, output_dir=None):
     from spotforge.workflow import create_router as workflow_router
     from spotforge.importer import create_router as importer_router
     from spotforge.campaigns import create_router as campaign_router
+    from spotforge.credentials_routes import create_router as credentials_router
     app.include_router(brand_router(store))
     app.include_router(generation_router(store), prefix="/api")
     app.include_router(workflow_router(store), prefix="/api")
     app.include_router(importer_router(store), prefix="/api")
     app.include_router(campaign_router(store), prefix="/api")
+    app.include_router(credentials_router(store), prefix="/api")
 
     @app.get("/{rest:path}")
     def frontend(rest: str):

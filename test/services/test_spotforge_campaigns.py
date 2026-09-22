@@ -141,3 +141,37 @@ def test_campaign_changes_use_revision_and_motif_keys_are_unique(client):
     assert response.status_code == 200
     detail = client.get(route).json()
     assert len(detail["motifs"]) == len(detail["projects"]) == 2
+
+
+def test_changed_cta_preserves_previous_cuts_and_local_edits(client):
+    c, p = campaign(client)
+    aid = image(client)
+    p["scenes"] = [Scene(source_asset_id=aid).model_dump()]
+    p["gates"] = dict.fromkeys(p["gates"], "approved")
+    client.app.state.store.write("projects", p["id"], p)
+    route = f"/api/campaigns/{c['id']}/motifs/pilot"
+    body = {"confirmed": True, "expected_revision": p["revision"]}
+    old = client.post(route + "/variants", json=body).json()
+    variants = old["campaign"]["motifs"][0]["variants"]
+    variants[0]["cta"] = "New call to action"
+    patched = client.patch(route, json={"expected_revision": old["campaign"]["revision"], "variants": variants})
+    assert patched.status_code == 200, patched.text
+    new = client.post(route + "/variants", json=body).json()
+    assert len(new["campaign"]["motifs"][0]["outputs"]) == 4
+    assert new["projects"][0]["id"] != old["projects"][0]["id"]
+    previous = client.get(f"/api/projects/{old['projects'][0]['id']}").json()
+    assert previous["scenes"][-1]["onscreen_text"] == "Demo product\nDiscover"
+    # Repeating assembly may not clobber work in an already created cut.
+    pid = new["projects"][0]["id"]
+    client.patch(f"/api/projects/{pid}", json={"title": "Edited cut"})
+    repeated = client.post(route + "/variants", json=body).json()
+    assert repeated["projects"][0]["title"] == "Edited cut"
+
+
+def test_fal_setup_is_mounted_and_rejects_cross_origin(client):
+    status = client.get("/api/providers/fal")
+    assert status.status_code == 200
+    assert "configured" in status.json() and "key" not in status.json()
+    response = client.put("/api/providers/fal", json={"key": "never-save-this", "persistence": "session"},
+                          headers={"Origin": "https://foreign.example"})
+    assert response.status_code == 403
