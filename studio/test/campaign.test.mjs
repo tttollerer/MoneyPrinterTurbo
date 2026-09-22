@@ -112,6 +112,8 @@ test("boundary story times accumulate mixed clip durations without floating drif
   assert.deepEqual(boundaryTimes([5, 10, 4, 30]), [0, 5, 15, 19, 49]);
   assert.deepEqual(boundaryTimes([0.1, 0.2, 59.7]), [0, 0.1, 0.3, 60]);
   assert.equal(formatStoryTime(65), "01:05.0");
+  assert.equal(formatStoryTime(59.96), "01:00.0");
+  assert.deepEqual(boundaryTimes([1.234567, 5]), [0, 1.234567, 6.234567]);
   assert.equal(boundaryTimes([5, NaN]), null);
   assert.equal(boundaryTimes([0]), null);
 });

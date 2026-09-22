@@ -6,14 +6,15 @@ export function boundaryTimes(durations) {
   for (const duration of durations) {
     if (!Number.isFinite(duration) || duration < 0.1 || duration > 120)
       return null;
-    times.push(Math.round((times.at(-1) + duration) * 1000) / 1000);
+    times.push(Math.round((times.at(-1) + duration) * 1_000_000) / 1_000_000);
   }
   return times;
 }
 export function formatStoryTime(seconds) {
   if (!Number.isFinite(seconds)) return "—";
-  const minutes = Math.floor(seconds / 60);
-  const remainder = (seconds % 60).toFixed(1).padStart(4, "0");
+  const tenths = Math.round(seconds * 10);
+  const minutes = Math.floor(tenths / 600);
+  const remainder = ((tenths % 600) / 10).toFixed(1).padStart(4, "0");
   return `${String(minutes).padStart(2, "0")}:${remainder}`;
 }
 
