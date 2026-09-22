@@ -18,7 +18,11 @@ def setup(tmp_path):
     return store, TestClient(app)
 
 
-def test_immutable_versions_and_explicit_apply_preserve_take_history(setup):
+@pytest.mark.parametrize("change", [
+    {"visual_style":"illustrated"}, {"tone":"restrained"},
+    {"rules":["Show packaging clearly"]}, {"forbidden_claims":["Guaranteed results"]},
+])
+def test_immutable_versions_and_explicit_apply_preserve_take_history(setup, change):
     store, client = setup
     first = client.post("/api/brands", json={"name": "Fixture", "visual_style": "natural"}).json()
     take = Take(asset_id="fixture", brand_snapshot=first)
@@ -27,7 +31,7 @@ def test_immutable_versions_and_explicit_apply_preserve_take_history(setup):
     project = Project(recipe="spot", brand_snapshot=Brand(**first), scenes=[generated, local],
                       gates={"final": "approved"}, render={"output": "old.mp4"})
     store.write("projects", project.id, project)
-    second = client.post(f"/api/brands/{first['id']}/versions", json={"visual_style": "illustrated"})
+    second = client.post(f"/api/brands/{first['id']}/versions", json=change)
     assert second.status_code == 201
     assert second.json()["version"] == 2
     assert client.get(f"/api/brands/{first['id']}?version=1").json() == first

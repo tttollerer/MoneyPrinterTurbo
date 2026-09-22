@@ -78,8 +78,9 @@ def apply_brand(store, project_id, brand_id, version=None):
         previous = project.brand_snapshot
         if previous == brand:
             return project
-        old_style = previous.visual_style if previous else ""
-        if old_style != brand.visual_style:
+        prompt_fields = {"visual_style": "", "tone": "", "rules": [], "forbidden_claims": []}
+        if any((getattr(previous, field) if previous else default) != getattr(brand, field)
+               for field, default in prompt_fields.items()):
             for scene in project.scenes:
                 if scene.mode != "local" and scene.takes:
                     scene.stale = True
