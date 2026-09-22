@@ -356,9 +356,13 @@ def create_app(data_dir=None, output_dir=None):
 
     @app.head("/api/assets/{aid}/file")
     @app.get("/api/assets/{aid}/file")
-    def asset_file(aid: str):
+    def asset_file(aid: str, request: Request):
         a = Asset.model_validate(store.read("assets", aid))
-        return FileResponse(store.asset_path(aid), media_type=a.mime, headers={"X-Content-Type-Options": "nosniff"})
+        headers = {"X-Content-Type-Options": "nosniff"}
+        origin = request.headers.get("origin", "")
+        if urlsplit(origin).hostname in {"localhost", "127.0.0.1"} and urlsplit(origin).scheme == "http":
+            headers.update({"Access-Control-Allow-Origin": origin, "Vary": "Origin"})
+        return FileResponse(store.asset_path(aid), media_type=a.mime, headers=headers)
 
     @app.get("/api/jobs")
     def jobs():
@@ -451,7 +455,7 @@ def create_app(data_dir=None, output_dir=None):
     from spotforge.brands import create_router as brand_router
     from spotforge.generation import create_router as generation_router
     app.include_router(brand_router(store))
-    app.include_router(generation_router(store))
+    app.include_router(generation_router(store), prefix="/api")
 
     @app.get("/{rest:path}")
     def frontend(rest: str):
