@@ -175,3 +175,20 @@ def test_fal_setup_is_mounted_and_rejects_cross_origin(client):
     response = client.put("/api/providers/fal", json={"key": "never-save-this", "persistence": "session"},
                           headers={"Origin": "https://foreign.example"})
     assert response.status_code == 403
+
+
+def test_export_preserves_changed_motif_format_and_brand(client):
+    c, p = campaign(client)
+    landscape = {"width": 1920, "height": 1080, "fps": 25}
+    assert client.patch(f"/api/projects/{p['id']}", json={"format": landscape}).status_code == 200
+    brand = client.post("/api/brands", json={"name": "Changed brand"}).json()
+    applied = client.post(f"/api/projects/{p['id']}/brand", json={"brand_id": brand["id"]})
+    assert applied.status_code == 200, applied.text
+    exported = client.get(f"/api/campaigns/{c['id']}/export").json()["document"]
+    assert exported["motifs"][0]["format"] == landscape
+    assert exported["motifs"][0]["brand_id"] == brand["id"]
+    imported = client.post("/api/campaigns", json=exported)
+    assert imported.status_code == 200, imported.text
+    copy = client.get(f"/api/projects/{imported.json()['motifs'][0]['project_id']}").json()
+    assert copy["format"] == landscape
+    assert copy["brand_snapshot"]["id"] == brand["id"]

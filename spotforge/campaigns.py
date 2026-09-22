@@ -6,7 +6,7 @@ assets and leaves all approvals to the user. File names are labels, never paths.
 import hashlib
 import io
 import json
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import NAMESPACE_URL, uuid5
 
 from fastapi import APIRouter, HTTPException
@@ -44,11 +44,16 @@ class MotifInput(Model):
     title: str = Field(min_length=1, max_length=120)
     brief: str = Field(default="", max_length=8000)
     script: str = Field(default="", max_length=12000)
+    format: Format | None = None
+    brand_id: str | None = None
+    brand_version: int | None = Field(default=None, ge=1)
     shots: list[ShotInput] = Field(default_factory=list, max_length=100)
     variants: list[Variant] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
     def unique_keys(self):
+        if self.brand_version and not self.brand_id:
+            raise ValueError("Markenversion benötigt eine Marke.")
         if len({v.key for v in self.variants}) != len(self.variants):
             raise ValueError("Fassungen brauchen eindeutige Schlüssel pro Motiv.")
         return self
@@ -106,7 +111,7 @@ class FrameRequest(Model):
     expected_revision: int
     asset_ids: list[str] = Field(min_length=2, max_length=101)
     prompts: list[str] | None = None
-    durations: list[Literal[5, 10]] | None = None
+    durations: list[Annotated[float, Field(ge=.1, le=120, allow_inf_nan=False)]] | None = None
 
 
 class AssembleRequest(Model):
@@ -157,17 +162,20 @@ def inspect_document(store, document):
     brand = _brand(store, document)
     missing = []
     for motif in document.motifs:
+        if motif.brand_id:
+            motif.brand_version = _brand(store, motif).version
+        fmt = motif.format or document.format
         for shot in motif.shots:
             for role in ("start", "end"):
                 aid = getattr(shot, role + "_asset_id")
                 if aid:
-                    _image(store, aid, document.format)
+                    _image(store, aid, fmt)
                 else:
                     missing.append({"motif_key": motif.key, "scene_title": shot.title,
                                     "role": role, "name": getattr(shot, role + "_frame")})
         for variant in motif.variants:
             if variant.endcard_asset_id:
-                _image(store, variant.endcard_asset_id, document.format)
+                _image(store, variant.endcard_asset_id, fmt)
     return brand, missing
 
 
@@ -177,7 +185,7 @@ def _build_motif(campaign, item, brand):
                     mode="start_end", start_asset_id=s.start_asset_id, end_asset_id=s.end_asset_id)
               for s in item.shots]
     p = Project(id=pid, title=item.title, brief=item.brief or campaign.brief, script=item.script,
-                recipe="spot", format=campaign.format, brand_snapshot=brand, scenes=scenes,
+                recipe="spot", format=item.format or campaign.format, brand_snapshot=brand, scenes=scenes,
                 gates=dict.fromkeys(GATES, "todo"))
     m = Motif(key=item.key, title=item.title, project_id=pid, variants=item.variants,
               frame_labels=[{"scene_id": scene.id, "start_frame": shot.start_frame,
@@ -197,7 +205,7 @@ def create_campaign(store, document, campaign_id=None):
             return _read(store, campaign.id)
         projects = []
         for item in document.motifs:
-            motif, project = _build_motif(campaign, item, brand)
+            motif, project = _build_motif(campaign, item, _brand(store, item) if item.brand_id else brand)
             campaign.motifs.append(motif)
             projects.append(project)
         for project in projects:
@@ -312,6 +320,8 @@ def export_document(store, campaign):
                                    start_asset_id=scene.start_asset_id, end_asset_id=scene.end_asset_id,
                                    start_frame=label.get("start_frame", ""), end_frame=label.get("end_frame", "")))
         motifs.append(MotifInput(key=motif.key, title=p.title[:120], brief=p.brief, script=p.script,
+                                 format=p.format, brand_id=p.brand_snapshot.id if p.brand_snapshot else None,
+                                 brand_version=p.brand_snapshot.version if p.brand_snapshot else None,
                                  shots=shots, variants=motif.variants))
     return {"document": CampaignInput(title=campaign.title, brief=campaign.brief, format=campaign.format,
                                       brand_id=campaign.brand_id, brand_version=campaign.brand_version, motifs=motifs),
@@ -392,7 +402,7 @@ def create_router(store):
             document = CampaignInput(title=campaign.title, format=campaign.format, brand_id=campaign.brand_id,
                                      brand_version=campaign.brand_version, motifs=[item])
             brand, _ = inspect_document(store, document)
-            motif, p = _build_motif(campaign, item, brand)
+            motif, p = _build_motif(campaign, item, _brand(store, item) if item.brand_id else brand)
             campaign.motifs.append(motif)
             campaign.revision += 1
             store.write("projects", p.id, p)

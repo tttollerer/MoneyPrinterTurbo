@@ -53,11 +53,19 @@ Der erste Adapter unterstützt **Kling 2.5 Turbo Pro via fal** mit 5 oder 10 Sek
 
 Referenzen müssen PNG, JPEG oder WebP sein und zum Seitenverhältnis des Projekts passen. Alternativ lässt sich der letzte Frame eines ausgewählten Takes der vorherigen Szene übernehmen. Änderungen am Vorgänger kennzeichnen abhängige Szenen als veraltet; vor dem Export müssen sie geprüft oder neu erzeugt werden. Frühere Takes bleiben erhalten. Die Bilder steuern das KI-Modell, garantieren jedoch keine pixelgenaue Übereinstimmung. Ein Endbild-Take darf im Schnitt nicht vor seinem Ende gekürzt werden.
 
-Für die kostenpflichtige Generierung muss `FAL_KEY` ausdrücklich in der Umgebung des gestarteten Servers gesetzt sein. Der Starter liest keine geheimen Dateien. Schlüssel niemals in Code, Screenshots oder Git eintragen. Ohne Schlüssel bleibt der lokale Medien-/Render-Workflow nutzbar.
+Unter **fal einrichten** den API-Schlüssel lokal eingeben: wahlweise im macOS-Schlüsselbund oder nur für die laufende Sitzung. Alternativ wird `FAL_KEY` aus der Serverumgebung unterstützt und hat Vorrang. Die App zeigt den gespeicherten Schlüssel nie wieder an und prüft die Einrichtung ohne bezahlten Modellaufruf. Ohne Schlüssel bleibt der lokale Medien-/Render-Workflow nutzbar. Details: [fal-Gateway](docs/spotforge/fal-gateway.md).
 
 Vor jedem Anbieterauftrag verlangt die Oberfläche eine Kostenbestätigung. Die aktuelle Version zeigt **keinen verlässlichen Preis** an; den Preis beim Anbieter prüfen. Referenzbilder und Szenenprompt werden für diese Funktion an fal übermittelt. Es gibt keine automatischen kostenpflichtigen Wiederholungen. Bei unterbrochenen Aufträgen setzt „Status fortsetzen“ die Abfrage anhand der gespeicherten Anbieter-ID fort. Ist die Übermittlung unklar, erst im Anbieter-Dashboard prüfen und die bekannte Request-ID eintragen; niemals blind neu absenden.
 
 Der Adapter ist mit simulierten Anbieterantworten getestet. Ein bezahlter Live-Auftrag gehört noch zur ausstehenden Abnahme.
+
+## Kampagnen und Batch-Produktion
+
+Der Einstieg **Kampagnen** bündelt Werbemotive und Zielgruppenfassungen. Der geführte Ablauf lautet **Briefing → Storyboard → Produktion → Abnahme → Export**. Motive können gemeinsam als Batch vorbereitet werden. Die Vorschau prüft Aufträge und Freigaben; erst die ausdrückliche Bestätigung startet die kostenpflichtige Clipproduktion. Vorhandene ausgewählte, aktuelle Takes werden übersprungen. Pausieren und Abbrechen verhindern weitere Übermittlungen, stornieren aber keine bereits gestarteten Anbieterleistungen.
+
+Für N Szenen N+1 Bilder zuordnen: Bild 1 ist Start von Clip 1, Bild 2 zugleich dessen Ende und Start von Clip 2 usw. Die Zielgruppenfassungen eines Motivs verwenden dieselben freigegebenen Clips und ergänzen jeweils Schlusskarte und CTA. Geänderte Fassungen behalten frühere Ausgaben als eigene Projekte. Unterschiedliche Handlung oder Besetzung braucht ein separates Motiv.
+
+Ein Kampagnen-JSON kann als Vorschau importiert werden. Dateinamen ohne zugeordnete Assets bleiben sichtbar fehlend. Ein Chat-Link allein lädt keine Bilder oder Anhänge. Der JSON-Export sichert den Produktionsplan, kein vollständiges Medien-/Projektbackup. Format und konkrete Markenversion dürfen pro Motiv variieren und bleiben im Plan erhalten. Beispiel und API: [Kampagnen](docs/spotforge/campaigns.md).
 
 ## Corporate Identity und Styleguides
 
