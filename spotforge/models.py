@@ -84,6 +84,9 @@ class Scene(Model):
     predecessor_scene_id: str | None = None
     source_asset_id: str | None = None
     model: str = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
+    resolution: Literal["480p", "720p"] = "720p"
+    generate_audio: bool = True
+    bitrate_mode: Literal["standard", "high"] = "standard"
     takes: list[Take] = Field(default_factory=list)
     selected_take_id: str | None = None
     stale: bool = False
