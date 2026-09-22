@@ -162,3 +162,33 @@ def test_shortening_linked_start_only_take_invalidates_and_blocks_boundary(clien
     assert res.status_code == 200
     assert res.json()["scenes"][1]["stale"]
     assert "Übergang" in client.get(f"/api/projects/{p.id}/manifest").json()["detail"]
+
+
+def test_reorder_preserves_all_scenes_and_rejects_invalid_dependencies(client):
+    store = client.app.state.store
+    a = store.add_asset(image_bytes(), "frame.png", "image", "image/png")
+    parent = Scene(source_asset_id=a.id)
+    child = Scene(source_asset_id=a.id, predecessor_scene_id=parent.id)
+    extra = Scene(source_asset_id=a.id)
+    p = Project(scenes=[parent, child, extra])
+    store.write("projects", p.id, p)
+    url = f"/api/projects/{p.id}/scenes/reorder"
+    assert client.post(url, json={"scene_ids":[parent.id,parent.id,extra.id],"expected_revision":1}).status_code == 422
+    assert client.post(url, json={"scene_ids":[child.id,parent.id,extra.id],"expected_revision":1}).status_code == 422
+    assert client.get(f"/api/projects/{p.id}").json()["revision"] == 1
+    res = client.post(url, json={"scene_ids":[extra.id,parent.id,child.id],"expected_revision":1})
+    assert res.status_code == 200
+    assert [s["id"] for s in res.json()["scenes"]] == [extra.id,parent.id,child.id]
+    assert client.post(url, json={"scene_ids":[parent.id,child.id,extra.id],"expected_revision":1}).status_code == 409
+
+
+def test_script_and_brief_edits_reset_their_approval_gates(client):
+    p = client.post("/api/projects", json={"title":"Guided", "recipe":"spot"}).json()
+    store = client.app.state.store
+    p["gates"] = dict.fromkeys(["concept","script","storyboard","clips","final"], "approved")
+    store.write("projects",p["id"],p)
+    res = client.patch(f"/api/projects/{p['id']}",json={"script":"Neue Aussage"})
+    assert res.json()["gates"]["concept"] == "approved"
+    assert res.json()["gates"]["script"] == "todo"
+    res = client.patch(f"/api/projects/{p['id']}",json={"brief":"Neue Zielgruppe"})
+    assert res.json()["gates"]["concept"] == "todo"

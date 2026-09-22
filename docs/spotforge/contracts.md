@@ -6,8 +6,9 @@ Authoritative Pydantic models: `spotforge/models.py`; generated schemas: `contra
 All errors are JSON `{detail: string}` (validation may return FastAPI detail array). Success uses plain JSON, no wrappers. UI base same-origin `/api`.
 - GET /api/health -> {ok, ...}
 - GET /api/projects -> Project[]; POST /api/projects {title,recipe?,format?,brand_id?,brand_version?} -> Project
-- GET /api/projects/{id} -> Project; PATCH same -> Project (title,format,audio,captions only; optional expected_revision)
+- GET /api/projects/{id} -> Project; PATCH same -> Project (title,brief,script,format,audio,captions only; optional expected_revision)
 - POST /api/projects/{id}/scenes -> Scene input -> Project
+- POST /api/projects/{id}/scenes/reorder {scene_ids,expected_revision} -> Project; exact permutation, dependencies stay ordered, existing time-coded captions must first be removed/re-timed
 - PATCH /api/projects/{id}/scenes/{sid} -> Scene patch -> Project; DELETE same -> Project
 - POST /api/projects/{id}/scenes/{sid}/select {take_id} -> Project
 - POST /api/projects/{id}/gates/{gate} {approve: bool} -> Project (only explicit user UI action)
