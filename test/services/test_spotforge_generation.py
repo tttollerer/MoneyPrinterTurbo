@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from spotforge import credentials
 from spotforge.generation import (
     MODEL, FalProvider, GenerationError, GenerationService, Rejected, create_router,
 )
@@ -17,6 +18,7 @@ from spotforge.store import Store
 
 @pytest.fixture
 def fixture(tmp_path, monkeypatch):
+    monkeypatch.setattr(credentials, "_credentials", credentials.Credentials())
     monkeypatch.setenv("FAL_KEY", "test-not-a-real-key")
     store = Store(tmp_path)
     data = io.BytesIO()

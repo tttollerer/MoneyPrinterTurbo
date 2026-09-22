@@ -8,7 +8,6 @@ import hashlib
 import io
 import json
 import math
-import os
 import re
 import subprocess
 import tempfile
@@ -24,6 +23,7 @@ from pydantic import BaseModel, ConfigDict
 
 from spotforge.models import Asset, Job, Project, Take, now
 from spotforge.media import local_input_options
+from spotforge.credentials import CredentialError, get_credentials
 
 MODEL = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
 ACTIVE = {"queued", "submitting", "running", "interrupted", "unknown"}
@@ -45,7 +45,7 @@ def capabilities():
     return [{"id": MODEL, "label": "Kling 2.5 Turbo Pro (fal)",
              "modes": ["start", "start_end"], "durations": [5, 10],
              "end_only": False, "cost": {"amount": None, "status": "unknown"},
-             "configured": bool(os.environ.get("FAL_KEY")),
+             "configured": get_credentials().status()["configured"],
              "assistance": "Nur Endbild: zuerst ein Startbild auswählen und bestätigen; danach Start + Ende."}]
 
 
@@ -152,9 +152,10 @@ def _invalidate_descendants(project, scene_id):
 
 
 class GenerationService:
-    def __init__(self, store, provider_factory=FalProvider, poll_seconds=3, timeout_seconds=900):
+    def __init__(self, store, provider_factory=FalProvider, poll_seconds=3, timeout_seconds=900, credential_provider=None):
         self.store = store
         self.provider_factory = provider_factory
+        self.credential_provider = credential_provider or get_credentials().get
         self.poll_seconds = poll_seconds
         self.timeout_seconds = timeout_seconds
         self.workers = set()
@@ -166,6 +167,8 @@ class GenerationService:
             for raw in self.store.list("jobs"):
                 job = Job.model_validate(raw)
                 if job.kind == "generation" and job.state in {"queued", "submitting", "running"}:
+                    if job.state == "queued" and not job.provider_request_id:
+                        job.result["not_submitted"] = True
                     job.state = "interrupted" if job.provider_request_id else ("failed" if job.state == "queued" else "unknown")
                     job.error = "Lauf unterbrochen. Bekannte Anbieter-ID fortsetzen; unklare Übermittlung nicht erneut absenden."
                     self._save(job)
@@ -174,21 +177,29 @@ class GenerationService:
         job.updated_at = now()
         self.store.write("jobs", job.id, job)
 
-    def start(self, project_id, scene_id, confirmed, expected_revision):
-        if not confirmed:
-            raise GenerationError("Kostenpflichtige Generierung muss ausdrücklich bestätigt werden.", 409)
-        if not os.environ.get("FAL_KEY"):
-            raise GenerationError("FAL_KEY fehlt. Es wurde kein Anbieterauftrag gestartet.", 409)
+    def _key(self):
+        try:
+            key = self.credential_provider()
+        except CredentialError as exc:
+            raise GenerationError(str(exc), 409) from None
+        if not key:
+            raise GenerationError("fal-Schlüssel fehlt. In den Einstellungen speichern oder FAL_KEY setzen; kein Auftrag gestartet.", 409)
+        return key
+
+    def _prepare(self, project_id, scene_id, expected_revision=None, *, check_active=False, batch_id=None):
+        self._key()
         with self.store.lock:
             with self.worker_lock:
-                if self.workers:
+                if check_active and self.workers:
                     raise GenerationError("Ein Generierungsauftrag läuft bereits.", 409)
+            if check_active and getattr(self.store, "batch_owner", None) not in {None, batch_id}:
+                raise GenerationError("Eine Kampagnenproduktion belegt die Generierung. Zuerst pausieren oder abschließen.", 409)
             project = Project.model_validate(self.store.read("projects", project_id))
-            if project.revision != expected_revision:
+            if expected_revision is not None and project.revision != expected_revision:
                 raise GenerationError("Projekt wurde geändert. Bitte neu laden und erneut bestätigen.", 409)
             if project.recipe == "spot" and any(project.gates.get(g) != "approved" for g in ("concept", "script", "storyboard")):
                 raise GenerationError("Konzept, Skript und Storyboard müssen freigegeben sein.", 409)
-            if any(j.get("kind") == "generation" and j.get("state") in ACTIVE for j in self.store.list("jobs")):
+            if check_active and any(j.get("kind") == "generation" and j.get("state") in ACTIVE for j in self.store.list("jobs")):
                 raise GenerationError("Ein Generierungsauftrag läuft oder benötigt Klärung. Diesen zuerst fortsetzen.", 409)
             scene = _scene(project, scene_id)
             if scene.model != MODEL:
@@ -238,23 +249,41 @@ class GenerationService:
                 prompt += "\nBrand rules:\n- " + "\n- ".join(brand["rules"])
             if brand.get("forbidden_claims"):
                 prompt += "\nDo not depict or claim:\n- " + "\n- ".join(brand["forbidden_claims"])
-            job = Job(project_id=project_id, scene_id=scene_id, kind="generation", input_snapshot={
+            snapshot = {
                 "project_revision": project.revision, "scene": scene.model_dump(mode="json"),
                 "brand_snapshot": brand, "assets": assets, "predecessor": predecessor,
                 "format": project.format.model_dump(),
                 "effective_prompt": prompt, "effective_mode": "start_end" if scene.end_asset_id else "start",
                 "start_asset_id": scene.start_asset_id, "end_asset_id": scene.end_asset_id,
                 "cost": {"amount": None, "status": "unknown", "confirmed": True},
-            })
+            }
+            return snapshot
+
+    def preflight(self, project_id, scene_id, expected_revision=None, *, check_active=False, batch_id=None):
+        """Validate saved inputs without creating a job or calling any provider."""
+        snapshot = self._prepare(project_id, scene_id, expected_revision, check_active=check_active, batch_id=batch_id)
+        return {"project_revision": snapshot["project_revision"], "model": snapshot["scene"]["model"],
+                "mode": snapshot["effective_mode"], "duration_s": snapshot["scene"]["duration_s"],
+                "configured": True, "cost": {"amount": None, "status": "unknown"}}
+
+    def start(self, project_id, scene_id, confirmed, expected_revision, *, batch_id=None):
+        if not confirmed:
+            raise GenerationError("Kostenpflichtige Generierung muss ausdrücklich bestätigt werden.", 409)
+        with self.store.lock:
+            snapshot = self._prepare(project_id, scene_id, expected_revision, check_active=True, batch_id=batch_id)
+            if batch_id is not None:
+                snapshot["batch_id"] = batch_id
+            job = Job(project_id=project_id, scene_id=scene_id, kind="generation", input_snapshot=snapshot)
             self._save(job)
             return job
 
-    def resume(self, job_id, confirmed, provider_request_id=None):
+    def resume(self, job_id, confirmed, provider_request_id=None, *, batch_id=None):
         if not confirmed:
             raise GenerationError("Fortsetzung bitte bestätigen; ein neuer Auftrag wird nicht erzeugt.", 409)
-        if not os.environ.get("FAL_KEY"):
-            raise GenerationError("FAL_KEY fehlt.", 409)
+        self._key()
         with self.store.lock:
+            if getattr(self.store, "batch_owner", None) not in {None, batch_id}:
+                raise GenerationError("Die laufende Kampagne verwaltet gerade die Generierung. Zuerst pausieren.", 409)
             job = Job.model_validate(self.store.read("jobs", job_id))
             if job.kind != "generation":
                 raise GenerationError("Kein Generierungsauftrag.")
@@ -312,9 +341,7 @@ class GenerationService:
         if job.state == "complete":
             return
         try:
-            key = os.environ.get("FAL_KEY")
-            if not key:
-                raise GenerationError("FAL_KEY fehlt. Keine neue Anbieteranfrage gesendet.", 409)
+            key = self._key()
             provider = self.provider_factory(key)
             if not resume:
                 if job.state != "queued" or job.provider_request_id:
@@ -326,8 +353,15 @@ class GenerationService:
                            "duration": str(int(job.input_snapshot["scene"]["duration_s"]))}
                 if job.input_snapshot["end_asset_id"]:
                     payload["tail_image_url"] = _data_uri(self.store, job.input_snapshot["end_asset_id"], job.input_snapshot["format"])
+                if self._key() != key:
+                    raise GenerationError("fal-Schlüssel wurde während der Vorbereitung geändert. Bitte neu bestätigen.", 409)
                 job.state = "submitting"
                 with self.store.lock:
+                    batch = job.input_snapshot.get("batch_id")
+                    if batch and (getattr(self.store, "batch_owner", None) != batch or getattr(self.store, "batch_stop_requested", False)):
+                        job.state = "queued"
+                        job.result["not_submitted"] = True
+                        raise GenerationError("Kampagnenauftrag vor der Übermittlung angehalten. Kein Anbieterauftrag gestartet.", 409)
                     current = Project.model_validate(self.store.read("projects", job.project_id))
                     if current.revision != job.input_snapshot["project_revision"]:
                         job.state = "queued"
@@ -437,10 +471,18 @@ class ResumeRequest(BaseModel):
     provider_request_id: str | None = None
 
 
+def get_service(store):
+    """Individual routes and campaign runners share one worker/queue owner."""
+    with store.lock:
+        if getattr(store, "_generation_service", None) is None:
+            store._generation_service = GenerationService(store)
+            store._generation_service.recover()
+        return store._generation_service
+
+
 def create_router(store):
     router = APIRouter()
-    service = GenerationService(store)
-    service.recover()
+    service = get_service(store)
 
     def perform(action):
         try:
