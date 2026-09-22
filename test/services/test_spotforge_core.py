@@ -103,3 +103,47 @@ def test_startup_marks_incomplete_render_interrupted(tmp_path):
     with TestClient(create_app(tmp_path)) as client:
         res=client.get(f"/api/jobs/{job.id}").json()
         assert res["state"] == "interrupted"
+
+
+def test_scene_with_unresolved_paid_job_cannot_be_deleted(client):
+    from spotforge.models import Job
+    p, _ = make_scene(client)
+    sid = p["scenes"][0]["id"]
+    job = Job(project_id=p["id"], scene_id=sid, kind="generation", state="interrupted", provider_request_id="known")
+    client.app.state.store.write("jobs", job.id, job)
+    assert client.delete(f"/api/projects/{p['id']}/scenes/{sid}").status_code == 409
+    assert len(client.get(f"/api/projects/{p['id']}").json()["scenes"]) == 1
+
+
+def test_changed_advertising_copy_requires_script_review(client):
+    p, _ = make_scene(client)
+    store = client.app.state.store
+    p["recipe"] = "spot"
+    p["gates"] = dict.fromkeys(["concept", "script", "storyboard", "clips", "final"], "approved")
+    store.write("projects", p["id"], p)
+    res = client.patch(f"/api/projects/{p['id']}/scenes/{p['scenes'][0]['id']}", json={"onscreen_text":"Neue Werbeaussage"})
+    assert res.status_code == 200
+    assert res.json()["gates"]["concept"] == "approved"
+    assert res.json()["gates"]["script"] == "todo"
+
+
+def test_format_change_marks_generated_scenes_stale(client):
+    store = client.app.state.store
+    a = store.add_asset(image_bytes(), "frame.png", "image", "image/png")
+    take = Take(asset_id=a.id)
+    p = Project(scenes=[Scene(mode="start", takes=[take], selected_take_id=take.id)])
+    store.write("projects", p.id, p)
+    res = client.patch(f"/api/projects/{p.id}", json={"format":{"width":1920,"height":1080,"fps":30}})
+    assert res.status_code == 200
+    assert res.json()["scenes"][0]["stale"]
+
+
+def test_changed_end_conditioned_duration_cannot_truncate_reference(client):
+    store = client.app.state.store
+    a = store.add_asset(image_bytes(), "frame.png", "image", "image/png")
+    take = Take(asset_id=a.id, end_asset_id=a.id, parameters={"actual_duration_s":10})
+    p = Project(scenes=[Scene(duration_s=5, takes=[take], selected_take_id=take.id)])
+    store.write("projects", p.id, p)
+    res = client.get(f"/api/projects/{p.id}/manifest")
+    assert res.status_code == 422
+    assert "Endbild" in res.json()["detail"]

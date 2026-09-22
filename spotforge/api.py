@@ -117,6 +117,11 @@ def render_manifest(store, p, base_url):
         if not aid:
             raise ValueError(f"{scene.title}: Es fehlt ein ausgewählter Clip oder ein lokales Bild.")
         include(aid)
+        take = next((t for t in scene.takes if t.id == scene.selected_take_id), None)
+        if take and take.end_asset_id:
+            actual = take.parameters.get("actual_duration_s")
+            if actual is not None and float(actual) > scene.duration_s + 1 / p.format.fps:
+                raise ValueError(f"{scene.title}: Kürzen würde das gewünschte Endbild abschneiden. Dauer mindestens {actual:.2f}s wählen.")
         duration = max(1, round(scene.duration_s * p.format.fps))
         scenes.append(RenderScene(id=scene.id, asset_id=aid, from_frame=cursor,
                                   duration_frames=duration, onscreen_text=scene.onscreen_text))
@@ -150,6 +155,7 @@ def create_app(data_dir=None, output_dir=None):
     outputs = Path(output_dir or os.environ.get("SPOTFORGE_OUTPUT_DIR", store.root / "Ausgaben")).resolve()
     render_lock = threading.Lock()
     processes = {}
+    cancellations = set()
 
     @asynccontextmanager
     async def lifespan(app):
@@ -162,6 +168,10 @@ def create_app(data_dir=None, output_dir=None):
         for proc in list(processes.values()):
             if proc.poll() is None:
                 proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
 
     app = FastAPI(title="SpotForge Local", lifespan=lifespan)
     app.state.store = store
@@ -228,10 +238,16 @@ def create_app(data_dir=None, output_dir=None):
                 raise HTTPException(409, "Projekt wurde inzwischen geändert. Neu laden.")
             if set(body) - {"title", "format", "audio", "captions"}:
                 raise ValueError("Unbekannte oder geschützte Projektfelder.")
+            old_format = p.format.model_dump()
             p = Project.model_validate({**p.model_dump(), **body})
             check_assets(store, p)
-            if set(body) - {"title"}:
-                invalidate_gates(p, "final")
+            if old_format != p.format.model_dump():
+                for scene in p.scenes:
+                    if scene.takes and scene.mode != "local":
+                        scene.stale = True
+                invalidate_gates(p, "storyboard")
+            if set(body) & {"captions", "audio"}:
+                invalidate_gates(p, "script")
             return save_project(store, p)
 
     @app.post("/api/projects/{pid}/scenes")
@@ -267,13 +283,15 @@ def create_app(data_dir=None, output_dir=None):
                 mark_descendants(p, sid)
             p.scenes[p.scenes.index(scene)] = updated
             check_assets(store, p)
-            invalidate_gates(p)
+            invalidate_gates(p, "script" if changed & {"prompt", "onscreen_text"} else "storyboard")
             return save_project(store, p)
 
     @app.delete("/api/projects/{pid}/scenes/{sid}")
     def delete_scene(pid: str, sid: str):
         with store.lock:
             p = project(store, pid)
+            if any(j.get("project_id") == pid and j.get("scene_id") == sid and j.get("state") in {"queued", "submitting", "running", "interrupted", "unknown"} for j in store.list("jobs")):
+                raise HTTPException(409, "Für diese Szene läuft ein Anbieterauftrag oder benötigt Klärung. Ergebnis zuerst sichern.")
             if any(s.predecessor_scene_id == sid for s in p.scenes):
                 raise HTTPException(409, "Folgeszenen sind verknüpft. Verknüpfung zuerst lösen.")
             if not any(s.id == sid for s in p.scenes):
@@ -335,8 +353,13 @@ def create_app(data_dir=None, output_dir=None):
         if not content:
             raise ValueError("Datei ist leer.")
         if kind == "image":
-            with Image.open(io.BytesIO(content)) as img:
-                img.verify()
+            try:
+                with Image.open(io.BytesIO(content)) as img:
+                    if img.width * img.height > 40_000_000:
+                        raise ValueError("Bild hat mehr als 40 Megapixel.")
+                    img.verify()
+            except (OSError, Image.DecompressionBombError) as exc:
+                raise ValueError("Ungültiges oder zu großes Bild.") from exc
         if kind == "font" and bytes(content[:4]) not in {b"\x00\x01\x00\x00", b"OTTO", b"wOFF", b"wOF2", b"true"}:
             raise ValueError("Ungültige Schriftdatei.")
         if Path(name).suffix.lower() == ".pdf" and not content.startswith(b"%PDF-"):
@@ -378,6 +401,9 @@ def create_app(data_dir=None, output_dir=None):
             return render_manifest(store, project(store, pid), str(request.base_url))
 
     def execute_render(jid, mf):
+        j = Job.model_validate(store.read("jobs", jid))
+        timer = None
+        timed_out = threading.Event()
         try:
             with store.lock:
                 j = Job.model_validate(store.read("jobs", jid))
@@ -390,6 +416,16 @@ def create_app(data_dir=None, output_dir=None):
             proc = subprocess.Popen(["node", str(REPO / "renderer/render.mjs"), str(manifest_path), str(output)],
                                     cwd=REPO / "renderer", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             processes[jid] = proc
+            def stop_after_timeout():
+                timed_out.set()
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+            timer = threading.Timer(15 * 60, stop_after_timeout)
+            timer.daemon = True
+            timer.start()
             error_lines = []
             for line in proc.stdout:
                 error_lines.append(line.strip())
@@ -403,6 +439,8 @@ def create_app(data_dir=None, output_dir=None):
                 except (ValueError, TypeError):
                     pass
             if proc.wait() != 0 or not output.is_file():
+                if timed_out.is_set():
+                    raise RuntimeError("Render nach 15 Minuten beendet. Browser und Medien prüfen.")
                 raise RuntimeError("Remotion konnte nicht rendern: " + " ".join(error_lines)[-1500:])
             j.state, j.progress = "complete", 1
             j.result = {"url": f"/api/outputs/{jid}", "duration_s": probe_duration(output), "output": str(output)}
@@ -412,8 +450,14 @@ def create_app(data_dir=None, output_dir=None):
                     p.render = {"job_id": jid, "project_revision": p.revision, **j.result}
                     store.write("projects", p.id, p)
         except Exception as exc:
-            j.state, j.error = "failed", str(exc)[-1800:]
+            if jid in cancellations:
+                j.state, j.error = "interrupted", "Render vom Nutzer abgebrochen."
+            else:
+                j.state, j.error = "failed", str(exc)[-1800:]
         finally:
+            if timer:
+                timer.cancel()
+            cancellations.discard(jid)
             j.updated_at = now()
             store.write("jobs", jid, j)
             processes.pop(jid, None)
@@ -434,6 +478,19 @@ def create_app(data_dir=None, output_dir=None):
             store.write("jobs", j.id, j)
             threading.Thread(target=execute_render, args=(j.id, mf), daemon=True).start()
             return j
+
+    @app.post("/api/jobs/{jid}/cancel")
+    def cancel_render(jid: str):
+        with store.lock:
+            j = Job.model_validate(store.read("jobs", jid))
+            if j.kind != "render":
+                raise HTTPException(409, "Anbieteraufträge können hier nicht abgebrochen werden.")
+            proc = processes.get(jid)
+            if not proc or proc.poll() is not None:
+                raise HTTPException(409, "Dieser Render läuft nicht mehr.")
+            cancellations.add(jid)
+            proc.terminate()
+            return {"id": jid, "state": "interrupted"}
 
     @app.get("/api/outputs/{jid}/preview")
     def preview_output(jid: str):

@@ -393,7 +393,7 @@ class GenerationService:
                             predecessor_take_id=(snap["predecessor"] or {}).get("take_id"),
                             brand_snapshot=snap["brand_snapshot"], provider_request_id=job.provider_request_id,
                             cost=snap["cost"])
-                unchanged = scene.model_dump(mode="json") == snap["scene"] and (
+                unchanged = project.format.model_dump() == snap["format"] and scene.model_dump(mode="json") == snap["scene"] and (
                     project.brand_snapshot.model_dump(mode="json") if project.brand_snapshot else {}) == snap["brand_snapshot"]
                 if snap["predecessor"]:
                     prev = next((s for s in project.scenes if s.id == snap["predecessor"]["scene_id"]), None)
