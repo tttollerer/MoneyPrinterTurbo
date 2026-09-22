@@ -556,3 +556,348 @@ a {
     grid-template-columns: 1fr;
   }
 }
+[hidden] {
+  display: none !important;
+}
+.status-pill {
+  font-size: 11px;
+  color: #bfcbdf;
+  border: 1px solid #42506a;
+  background: #26334955;
+  border-radius: 100px;
+  padding: 5px 9px;
+  display: inline-flex;
+}
+.status-pill.ready {
+  color: #99dbc4;
+  border-color: #356957;
+  background: #23443a55;
+}
+.success-note {
+  color: #99dbc4;
+}
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+}
+.campaign-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.campaign-intro {
+  padding: 18px 4px 30px;
+}
+.campaign-intro h2 {
+  font-size: 36px;
+  letter-spacing: -1.3px;
+  line-height: 1.15;
+  margin: 12px 0 18px;
+  font-weight: 600;
+}
+.campaign-intro p {
+  max-width: 570px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.campaign-grid,
+.motif-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+.campaign-card {
+  padding: 24px;
+  background: linear-gradient(145deg, #222833, #161b24);
+  text-align: left;
+  border-radius: 12px;
+  min-height: 205px;
+}
+.campaign-card h3 {
+  font-size: 21px;
+  margin: 15px 0 10px;
+  letter-spacing: -0.4px;
+}
+.campaign-card p {
+  color: var(--muted);
+  min-height: 45px;
+}
+.campaign-overview h2 {
+  font-size: 27px;
+  margin: 10px 0;
+}
+.campaign-summary {
+  display: flex;
+  gap: 38px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.campaign-summary > span {
+  font-size: 24px;
+  font-weight: 500;
+}
+.campaign-summary small {
+  display: block;
+  font-size: 11px;
+  margin-top: 6px;
+  font-weight: 400;
+}
+.campaign-heading {
+  margin: 25px 0 15px;
+}
+.campaign-heading h2 {
+  margin: 0;
+}
+.motif-card h3 {
+  font-size: 18px;
+  margin: 0;
+}
+.motif-card details {
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+.motif-card > .row {
+  margin-bottom: 16px;
+}
+.motif-card > .subtle {
+  margin-top: 12px;
+}
+.variant-list,
+.variant-outputs,
+.variant-editor {
+  border-top: 1px solid var(--border);
+  margin-top: 22px;
+  padding-top: 10px;
+}
+.variant-line {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+  margin-bottom: 10px;
+}
+.variant-line strong,
+.variant-line small {
+  display: block;
+}
+.variant-line strong {
+  font-size: 13px;
+}
+.variant-line p {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.variant-output {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  gap: 5px;
+  margin: 8px 0;
+  background: #11161e;
+}
+.variant-output span {
+  font-size: 11px;
+  color: var(--accent);
+}
+.variant-form {
+  background: #11161e;
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.variant-form > .row {
+  margin-bottom: 14px;
+}
+.missing-frames {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #c7b4a5;
+  max-height: 230px;
+  overflow: auto;
+}
+.import-preview {
+  border-top: 1px solid var(--border);
+  margin-top: 18px;
+  padding-top: 10px;
+}
+.provider-panel {
+  max-width: 740px;
+}
+.provider-panel > .row {
+  margin-bottom: 20px;
+}
+.provider-remove {
+  border-top: 1px solid var(--border);
+  margin-top: 28px;
+  padding-top: 16px;
+}
+.batch-selection {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 20px 0 8px;
+}
+.batch-history {
+  margin-bottom: 0;
+  min-width: 250px;
+}
+.batch-preview {
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.batch-items {
+  max-height: 380px;
+  overflow: auto;
+  margin-bottom: 20px;
+}
+.batch-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+  align-items: flex-start;
+}
+.batch-item strong {
+  font-size: 12px;
+}
+.batch-item small {
+  display: block;
+}
+.batch-item p {
+  margin-bottom: 0;
+}
+.campaign-breadcrumb {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.phase-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 22px;
+  overflow: auto;
+}
+.phase-nav button {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: 13px 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 13px;
+}
+.phase-nav button > span {
+  font-size: 10px;
+  border: 1px solid #485365;
+  border-radius: 50%;
+  width: 19px;
+  height: 19px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.phase-nav button.active {
+  color: #f0b9a9;
+  border-bottom-color: var(--accent);
+}
+.phase-nav button.active > span {
+  background: var(--accent);
+  color: #171c25;
+  border-color: var(--accent);
+}
+.workspace.phase-briefing {
+  display: block;
+  max-width: 760px;
+}
+.boundary-strip {
+  display: flex;
+  gap: 14px;
+  overflow: auto;
+  margin: 22px 0;
+}
+.boundary-card {
+  flex: 0 0 215px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 13px;
+  background: #11161e;
+}
+.boundary-card strong {
+  font-size: 13px;
+}
+.boundary-card img,
+.frame-placeholder {
+  width: 100%;
+  height: 160px;
+  object-fit: contain;
+  border-radius: 5px;
+  background: #090c11;
+  margin: 12px 0;
+}
+.frame-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aa8590;
+  font-size: 12px;
+  border: 1px dashed #694651;
+}
+.boundary-card small {
+  font-size: 10px;
+}
+.boundary-card select {
+  font-size: 12px;
+}
+.boundary-card .upload {
+  font-size: 11px;
+  padding: 8px;
+}
+.boundary-card input {
+  width: 100%;
+  font-size: 10px;
+}
+.boundary-scenes {
+  margin-top: 18px;
+}
+.boundary-scenes .grid {
+  grid-template-columns: 1fr 180px;
+}
+@media (max-width: 780px) {
+  .campaign-intro h2 {
+    font-size: 29px;
+  }
+  .campaign-grid,
+  .motif-grid {
+    grid-template-columns: 1fr;
+  }
+  .campaign-summary {
+    gap: 20px;
+  }
+  .phase-nav button {
+    padding: 10px;
+  }
+  .boundary-scenes .grid {
+    grid-template-columns: 1fr;
+  }
+  .batch-item {
+    flex-direction: column;
+  }
+}
+.campaign-metadata {
+  font-size: 12px;
+  margin: 15px 0;
+}
+.campaign-metadata summary {
+  cursor: pointer;
+  color: var(--accent);
+  margin-bottom: 15px;
+}
