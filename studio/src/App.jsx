@@ -880,6 +880,8 @@ export default function App() {
               onImported={(p) => {
                 updateProject(p);
                 setActive(p.scenes[0]?.id || "");
+                setCampaignContext(null);
+                setPhase("briefing");
                 setTab("edit");
                 refresh().catch((e) => setError(e.message));
               }}
