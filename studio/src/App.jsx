@@ -256,7 +256,8 @@ function SceneEditor({
           {model?.generate_audio && (
             <label className="check">
               <input type="checkbox" checked={draft.generate_audio ?? true} onChange={(e) => edit("generate_audio", e.target.checked)} />
-              Ton passend zur Szene erzeugen
+              Ton passend zur Szene erzeugen. Für den Export außerdem unter Audio
+              „Originalton der Clips verwenden“ aktivieren.
             </label>
           )}
           {!durationSupported && model && (

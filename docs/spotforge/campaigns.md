@@ -14,7 +14,7 @@ Der Batch führt Video-KI-Aufträge aus; die finale Freigabe und der Remotion-Ex
 
 ## Zeitlich geplante Grenzbilder
 
-Die Laufzeiten der Szenen sind die maßgebliche Zeitplanung. Bei sechs Clips à fünf Sekunden liegen die sieben Grenzbilder bei 0, 5, 10, 15, 20, 25 und 30 Sekunden. Das Storyboard zeigt diese Zeitpunkte und warnt bei geänderten Laufzeiten: Die Bildinhalte müssen dann erneut auf plausible Bewegung und fortschreitende Zustände geprüft werden. Gemeint ist die Zeit innerhalb der Handlung, nicht eine Wartezeit zwischen Bildgenerierungsaufrufen.
+Die Laufzeiten der Szenen sind die maßgebliche Zeitplanung. Bei sechs Clips à fünf Sekunden liegen die sieben Grenzbilder bei 0, 5, 10, 15, 20, 25 und 30 Sekunden. „Zeitplan exportieren“ lädt die abgeleiteten Zeitpunkte separat als JSON; der Produktionsplan bleibt direkt importierbar. Das Storyboard zeigt diese Zeitpunkte und warnt bei geänderten Laufzeiten: Die Bildinhalte müssen dann erneut auf plausible Bewegung und fortschreitende Zustände geprüft werden. Gemeint ist die Zeit innerhalb der Handlung, nicht eine Wartezeit zwischen Bildgenerierungsaufrufen.
 
 Bildpläne sollten je Grenze Figuren, Kamera, Requisiten und bereits eingetretene Schäden beschreiben. Je Übergang wird die Handlung in der konkreten Clipdauer beschrieben. Das gemeinsame Grenzbild ist Ende des vorherigen und Start des nächsten Clips. Ein Schnitt oder Ortswechsel benötigt eine ausdrücklich geplante Einstellung; ein Bildpaar allein garantiert keine physikalisch korrekte KI-Bewegung.
 
@@ -44,7 +44,7 @@ GPT Image 2 kann außerhalb des Studios über die eingebaute Codex-Bildgenerieru
 }
 ```
 
-Pro Shot werden `model`, `resolution`, `generate_audio` und `bitrate_mode` gespeichert und exportiert. Seedance verwendet den Endbildparameter `end_image_url`, Kling `tail_image_url`; Adapter, Modell und Optionen bleiben pro Auftrag festgehalten. Seedance erhält `aspect_ratio: "auto"` anhand des Eingangsbilds und immer eine explizite Laufzeit. `auto` als Laufzeit ist für zeitlich geplante Bildfolgen nicht zulässig. [Seedance 2.5 API](https://fal.ai/models/bytedance/seedance-2.5/us/image-to-video/api).
+Pro Shot werden `model`, `resolution`, `generate_audio` und `bitrate_mode` gespeichert und exportiert. Seedance verwendet den Endbildparameter `end_image_url`, Kling `tail_image_url`; Adapter, Modell und Optionen bleiben pro Auftrag festgehalten. Generierten Ton im finalen Schnitt unter Audio mit „Originalton der Clips verwenden“ bewusst aktivieren. Seedance erhält `aspect_ratio: "auto"` anhand des Eingangsbilds und immer eine explizite Laufzeit. `auto` als Laufzeit ist für zeitlich geplante Bildfolgen nicht zulässig. [Seedance 2.5 API](https://fal.ai/models/bytedance/seedance-2.5/us/image-to-video/api).
 
 Optionale Kampagnenfelder `brand_id` und `brand_version` referenzieren ein lokales Markenprofil. Der Import pinnt dessen Version. `start_asset_id`/`end_asset_id` und `endcard_asset_id` referenzieren bereits hochgeladene lokale Bilder. Dateinamen `start_frame`/`end_frame` sind nur redaktionelle Hinweise; sie werden nie als Dateipfade gelesen. Eine vorhandene gestaltete Schlusskarte kann per `endcard_asset_id` eingesetzt werden; Text und CTA dürfen leer bleiben, wenn sie bereits im Bild enthalten sind. Ohne Bild erstellt die App einen neutralen Markenfarb-Hintergrund und Remotion setzt den Text.
 
