@@ -320,14 +320,17 @@ def create_app(data_dir=None, output_dir=None):
             scene = next((s for s in p.scenes if s.id == sid), None)
             if scene is None:
                 raise HTTPException(404, "Szene fehlt.")
-            if set(body) - {"title", "mode", "prompt", "duration_s", "start_asset_id", "end_asset_id", "predecessor_scene_id", "source_asset_id", "model", "onscreen_text"}:
+            if set(body) - {"title", "mode", "prompt", "duration_s", "start_asset_id", "end_asset_id", "predecessor_scene_id", "source_asset_id", "model", "resolution", "generate_audio", "bitrate_mode", "onscreen_text"}:
                 raise ValueError("Unbekannte oder geschützte Szenenfelder.")
             updated = Scene.model_validate({**scene.model_dump(), **body})
             changed = {k for k, v in body.items() if getattr(scene, k) != v}
-            if changed & {"mode", "prompt", "start_asset_id", "end_asset_id", "predecessor_scene_id", "model"}:
+            if changed & {"mode", "prompt", "start_asset_id", "end_asset_id", "predecessor_scene_id", "model", "resolution", "generate_audio", "bitrate_mode"}:
                 updated.stale = bool(scene.takes)
                 mark_descendants(p, sid)
             if "duration_s" in changed:
+                # A generated clip was conditioned on its original elapsed time.
+                if scene.takes and scene.mode != "local":
+                    updated.stale = True
                 mark_descendants(p, sid)
             if "source_asset_id" in changed:
                 updated.selected_take_id = None

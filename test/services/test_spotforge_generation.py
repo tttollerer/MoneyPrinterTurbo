@@ -329,3 +329,108 @@ def test_spot_generation_invalidates_only_downstream_gates(fixture, video):
     svc.run(job.id)
     gates = store.read("projects", project.id)["gates"]
     assert gates == {"concept": "approved", "script": "approved", "storyboard": "approved", "clips": "todo", "final": "todo"}
+
+
+@pytest.mark.parametrize("duration", [4, 7, 30])
+def test_seedance_preserves_fixed_timing_end_frame_and_options(fixture, video, duration):
+    from spotforge.generation import SEEDANCE_MODEL
+    store, project, image, end = fixture
+    scene = project.scenes[0]
+    scene.model, scene.duration_s = SEEDANCE_MODEL, duration
+    scene.resolution, scene.generate_audio, scene.bitrate_mode = "480p", False, "high"
+    store.write("projects", project.id, project)
+    provider = FakeProvider(video)
+    svc = service(store, provider)
+    job = svc.start(project.id, scene.id, True, 1)
+    svc.run(job.id)
+    payload = provider.submissions[0]
+    assert payload["duration"] == str(duration)
+    assert payload["end_image_url"] != payload["image_url"]
+    assert "tail_image_url" not in payload
+    assert {k: payload[k] for k in ("resolution", "generate_audio", "bitrate_mode", "aspect_ratio")} == {
+        "resolution": "480p", "generate_audio": False, "bitrate_mode": "high", "aspect_ratio": "auto"}
+    take = store.read("projects", project.id)["scenes"][0]["takes"][0]
+    assert take["model"] == SEEDANCE_MODEL
+    assert take["parameters"]["duration"] == duration
+    assert take["parameters"]["generate_audio"] is False
+    assert take["parameters"]["resolution"] == "480p"
+    assert take["start_asset_id"] == image.id and take["end_asset_id"] == end.id
+
+
+@pytest.mark.parametrize("duration", [3, 4.5, 31])
+def test_seedance_rejects_unsupported_timing_before_job(fixture, duration):
+    from spotforge.generation import SEEDANCE_MODEL
+    store, project, _, _ = fixture
+    project.scenes[0].model = SEEDANCE_MODEL
+    project.scenes[0].duration_s = duration
+    store.write("projects", project.id, project)
+    with pytest.raises(GenerationError, match="feste Dauern"):
+        service(store, FakeProvider()).start(project.id, project.scenes[0].id, True, 1)
+    assert not store.list("jobs")
+
+
+@pytest.mark.parametrize("model,queue_root", [
+    (MODEL, "fal-ai/kling-video"),
+    ("bytedance/seedance-2.5/us/image-to-video", "bytedance/seedance-2.5"),
+])
+def test_provider_routes_submit_and_resume_to_pinned_model(monkeypatch, model, queue_root):
+    from types import SimpleNamespace
+    calls = []
+
+    def request(url, **kwargs):
+        calls.append((url, kwargs))
+        return SimpleNamespace(status_code=200, raise_for_status=lambda: None,
+                               json=lambda: {"request_id": "test-id", "status": "COMPLETED",
+                                             "video": {"url": "https://fal.media/clip.mp4"}})
+
+    monkeypatch.setattr("spotforge.generation.requests.post", request)
+    monkeypatch.setattr("spotforge.generation.requests.get", request)
+    provider = FalProvider("fake-key", model)
+    assert provider.submit({"duration": "5"}) == "test-id"
+    assert provider.poll("test-id") == "COMPLETED"
+    assert provider.result("test-id") == "https://fal.media/clip.mp4"
+    assert [url for url, _ in calls] == [f"https://queue.fal.run/{model}",
+        f"https://queue.fal.run/{queue_root}/requests/test-id/status",
+        f"https://queue.fal.run/{queue_root}/requests/test-id"]
+
+
+def test_resuming_legacy_snapshot_keeps_kling_take_current(fixture, video):
+    store, project, _, _ = fixture
+    svc = service(store, FakeProvider(video))
+    job = svc.start(project.id, project.scenes[0].id, True, 1)
+    for field in ("resolution", "generate_audio", "bitrate_mode"):
+        job.input_snapshot["scene"].pop(field)
+    job.provider_request_id, job.state = "request-test", "interrupted"
+    store.write("jobs", job.id, job)
+    svc.run(job.id, resume=True)
+    scene = store.read("projects", project.id)["scenes"][0]
+    assert scene["selected_take_id"] == scene["takes"][0]["id"]
+    assert scene["takes"][0]["model"] == MODEL
+    assert not scene["stale"]
+
+
+def test_resume_uses_saved_model_even_after_scene_model_changes(fixture, video, monkeypatch):
+    from spotforge.generation import SEEDANCE_MODEL
+    store, project, _, _ = fixture
+    project.scenes[0].model = SEEDANCE_MODEL
+    store.write("projects", project.id, project)
+    svc = GenerationService(store)
+    job = svc.start(project.id, project.scenes[0].id, True, 1)
+    job.provider_request_id, job.state = "request-test", "interrupted"
+    store.write("jobs", job.id, job)
+    project.scenes[0].model = MODEL
+    store.write("projects", project.id, project)
+    constructed = []
+    provider = FakeProvider(video)
+
+    def provider_factory(key, model):
+        constructed.append(model)
+        return provider
+
+    monkeypatch.setattr("spotforge.generation.FalProvider", provider_factory)
+    svc.run(job.id, resume=True)
+    assert constructed == [SEEDANCE_MODEL]
+    assert provider.submissions == []
+    saved = store.read("projects", project.id)["scenes"][0]
+    assert saved["takes"][0]["model"] == SEEDANCE_MODEL
+    assert saved["stale"] and saved["selected_take_id"] is None

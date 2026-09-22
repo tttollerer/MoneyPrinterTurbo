@@ -21,11 +21,21 @@ from fastapi import APIRouter, HTTPException
 from PIL import Image
 from pydantic import BaseModel, ConfigDict
 
-from spotforge.models import Asset, Job, Project, Take, now
+from spotforge.models import Asset, Job, Project, Scene, Take, now
 from spotforge.media import local_input_options
 from spotforge.credentials import CredentialError, get_credentials
 
 MODEL = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
+SEEDANCE_MODEL = "bytedance/seedance-2.5/us/image-to-video"
+MODEL_SPECS = {
+    SEEDANCE_MODEL: {"label": "Seedance 2.5 US (fal)", "durations": list(range(4, 31)),
+                     "queue_root": "bytedance/seedance-2.5", "end_parameter": "end_image_url",
+                     "resolutions": ["480p", "720p"], "generate_audio": True,
+                     "bitrate_modes": ["standard", "high"]},
+    MODEL: {"label": "Kling 2.5 Turbo Pro (fal)", "durations": [5, 10],
+            "queue_root": "fal-ai/kling-video", "end_parameter": "tail_image_url",
+            "resolutions": [], "generate_audio": False, "bitrate_modes": []},
+}
 ACTIVE = {"queued", "submitting", "running", "interrupted", "unknown"}
 MAX_IMAGE = 20 * 1024 * 1024
 MAX_VIDEO = 250 * 1024 * 1024
@@ -42,20 +52,30 @@ class Rejected(GenerationError):
 
 
 def capabilities():
-    return [{"id": MODEL, "label": "Kling 2.5 Turbo Pro (fal)",
-             "modes": ["start", "start_end"], "durations": [5, 10],
+    configured = get_credentials().status()["configured"]
+    return [{"id": model, "label": spec["label"], "modes": ["start", "start_end"],
+             "durations": spec["durations"], "resolutions": spec["resolutions"],
+             "generate_audio": spec["generate_audio"], "bitrate_modes": spec["bitrate_modes"],
+             "preferred": model == SEEDANCE_MODEL,
+             "defaults": {"resolution": "720p", "generate_audio": True, "bitrate_mode": "standard"}
+                         if model == SEEDANCE_MODEL else {},
              "end_only": False, "cost": {"amount": None, "status": "unknown"},
-             "configured": get_credentials().status()["configured"],
-             "assistance": "Nur Endbild: zuerst ein Startbild auswählen und bestätigen; danach Start + Ende."}]
+             "configured": configured,
+             "assistance": "Nur Endbild: zuerst ein Startbild auswählen und bestätigen; danach Start + Ende."}
+            for model, spec in MODEL_SPECS.items()]
 
 
 class FalProvider:
     """Small queue adapter; credentials never enter persisted state or errors."""
-    def __init__(self, key):
+    def __init__(self, key, model=MODEL):
+        if model not in MODEL_SPECS:
+            raise GenerationError("Dieses Modell wird vom aktuellen Anbieteradapter nicht unterstützt.")
+        self.model = model
+        self.queue_root = MODEL_SPECS[model]["queue_root"]
         self.headers = {"Authorization": f"Key {key}"}
 
     def submit(self, payload):
-        response = requests.post(f"https://queue.fal.run/{MODEL}",
+        response = requests.post(f"https://queue.fal.run/{self.model}",
                                  headers=self.headers, json=payload, timeout=(15, 90))
         if 400 <= response.status_code < 500 and response.status_code not in {408, 499}:
             raise Rejected(f"Anbieter hat die Anfrage abgelehnt (HTTP {response.status_code}).", 502)
@@ -68,13 +88,13 @@ class FalProvider:
 
     def poll(self, request_id):
         # fal queue operations use the model owner/name, not its endpoint suffix.
-        response = requests.get(f"https://queue.fal.run/fal-ai/kling-video/requests/{request_id}/status",
+        response = requests.get(f"https://queue.fal.run/{self.queue_root}/requests/{request_id}/status",
                                 headers=self.headers, timeout=(15, 30))
         response.raise_for_status()
         return response.json().get("status")
 
     def result(self, request_id):
-        response = requests.get(f"https://queue.fal.run/fal-ai/kling-video/requests/{request_id}",
+        response = requests.get(f"https://queue.fal.run/{self.queue_root}/requests/{request_id}",
                                 headers=self.headers, timeout=(15, 60))
         if response.status_code == 422:
             raise Rejected("Der Anbieter konnte den Clip nicht erzeugen.", 502)
@@ -152,7 +172,7 @@ def _invalidate_descendants(project, scene_id):
 
 
 class GenerationService:
-    def __init__(self, store, provider_factory=FalProvider, poll_seconds=3, timeout_seconds=900, credential_provider=None):
+    def __init__(self, store, provider_factory=None, poll_seconds=3, timeout_seconds=900, credential_provider=None):
         self.store = store
         self.provider_factory = provider_factory
         self.credential_provider = credential_provider or get_credentials().get
@@ -202,12 +222,13 @@ class GenerationService:
             if check_active and any(j.get("kind") == "generation" and j.get("state") in ACTIVE for j in self.store.list("jobs")):
                 raise GenerationError("Ein Generierungsauftrag läuft oder benötigt Klärung. Diesen zuerst fortsetzen.", 409)
             scene = _scene(project, scene_id)
-            if scene.model != MODEL:
+            if scene.model not in MODEL_SPECS:
                 raise GenerationError("Dieses Modell wird vom aktuellen Anbieteradapter nicht unterstützt.")
             if scene.mode not in {"start", "start_end", "end"}:
                 raise GenerationError("Dieses Modell benötigt ein Startbild; Text-zu-Video wird nicht unterstützt.")
-            if scene.duration_s not in {5, 10}:
-                raise GenerationError("Dieses Modell unterstützt genau 5 oder 10 Sekunden.")
+            if scene.duration_s not in MODEL_SPECS[scene.model]["durations"]:
+                durations = ", ".join(map(str, MODEL_SPECS[scene.model]["durations"]))
+                raise GenerationError(f"Dieses Modell unterstützt feste Dauern in Sekunden: {durations}. Kein Auto-Timing.")
             if not scene.prompt.strip():
                 raise GenerationError("Für die Generierung fehlt eine Szenenbeschreibung.")
             if scene.mode in {"start_end", "end"} and not scene.end_asset_id:
@@ -342,7 +363,9 @@ class GenerationService:
             return
         try:
             key = self._key()
-            provider = self.provider_factory(key)
+            model = job.input_snapshot["scene"].get("model", MODEL)
+            spec = MODEL_SPECS[model]
+            provider = self.provider_factory(key) if self.provider_factory else FalProvider(key, model)
             if not resume:
                 if job.state != "queued" or job.provider_request_id:
                     raise GenerationError("Auftrag wurde bereits übermittelt; nur fortsetzen erlaubt.")
@@ -352,7 +375,11 @@ class GenerationService:
                            "image_url": _data_uri(self.store, job.input_snapshot["start_asset_id"], job.input_snapshot["format"]),
                            "duration": str(int(job.input_snapshot["scene"]["duration_s"]))}
                 if job.input_snapshot["end_asset_id"]:
-                    payload["tail_image_url"] = _data_uri(self.store, job.input_snapshot["end_asset_id"], job.input_snapshot["format"])
+                    payload[spec["end_parameter"]] = _data_uri(self.store, job.input_snapshot["end_asset_id"], job.input_snapshot["format"])
+                if model == SEEDANCE_MODEL:
+                    scene = Scene.model_validate(job.input_snapshot["scene"])
+                    payload.update(resolution=scene.resolution, generate_audio=scene.generate_audio,
+                                   bitrate_mode=scene.bitrate_mode, aspect_ratio="auto")
                 if self._key() != key:
                     raise GenerationError("fal-Schlüssel wurde während der Vorbereitung geändert. Bitte neu bestätigen.", 409)
                 job.state = "submitting"
@@ -430,14 +457,18 @@ class GenerationService:
             else:
                 asset = self.store.add_asset(content, f"{scene.id}-take.mp4", "video", "video/mp4")
                 snap = job.input_snapshot
-                take = Take(asset_id=asset.id, model=MODEL, prompt=snap["effective_prompt"],
+                pinned_scene = Scene.model_validate(snap["scene"])
+                options = ({"resolution": pinned_scene.resolution, "generate_audio": pinned_scene.generate_audio,
+                            "bitrate_mode": pinned_scene.bitrate_mode, "aspect_ratio": "auto"}
+                           if pinned_scene.model == SEEDANCE_MODEL else {})
+                take = Take(asset_id=asset.id, model=pinned_scene.model, prompt=snap["effective_prompt"],
                             parameters={"duration": snap["scene"]["duration_s"], "mode": snap["effective_mode"],
-                                        "input_assets": {aid: data["sha256"] for aid, data in snap["assets"].items()}, **measured},
+                                        "input_assets": {aid: data["sha256"] for aid, data in snap["assets"].items()}, **options, **measured},
                             start_asset_id=snap["start_asset_id"], end_asset_id=snap["end_asset_id"],
                             predecessor_take_id=(snap["predecessor"] or {}).get("take_id"),
                             brand_snapshot=snap["brand_snapshot"], provider_request_id=job.provider_request_id,
                             cost=snap["cost"])
-                unchanged = project.format.model_dump() == snap["format"] and scene.model_dump(mode="json") == snap["scene"] and (
+                unchanged = project.format.model_dump() == snap["format"] and scene.model_dump(mode="json") == pinned_scene.model_dump(mode="json") and (
                     project.brand_snapshot.model_dump(mode="json") if project.brand_snapshot else {}) == snap["brand_snapshot"]
                 if snap["predecessor"]:
                     prev = next((s for s in project.scenes if s.id == snap["predecessor"]["scene_id"]), None)
