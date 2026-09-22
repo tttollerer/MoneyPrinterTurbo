@@ -52,6 +52,7 @@ htmlcov/
 /Ausgaben/
 /studio/dist/
 /renderer/dist/
+/renderer/build/
 /renderer/.remotion/
 /.uv-cache/
 /.pytest_cache/

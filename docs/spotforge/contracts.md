@@ -18,9 +18,11 @@ All errors are JSON `{detail: string}` (validation may return FastAPI detail arr
 - GET /api/models -> capability objects (id,label,modes)
 - POST /api/projects/{id}/scenes/{sid}/generate {confirmed:bool,expected_revision:int} -> Job
 - GET /api/jobs -> Job[]; GET /api/jobs/{id} -> Job
-- POST /api/jobs/{id}/resume {confirmed:bool} -> Job; only reconcile known provider ids; no blind paid retries
+- POST /api/jobs/{id}/resume {confirmed:bool,provider_request_id?:string} -> Job; polls an existing request without resubmission. Explicit ID assignment is only allowed for unknown jobs without an ID.
+- POST /api/jobs/{id}/cancel -> {id,state}; local renders only, not provider jobs
 - POST /api/projects/{id}/render -> Job; GET /api/projects/{id}/manifest -> RenderManifest for preview
-- GET /api/outputs/{job_id} -> MP4
+- GET /api/outputs/{job_id}/preview -> MP4 before final human approval
+- GET /api/outputs/{job_id} -> MP4; spot projects require final approval of this current export
 
 Agent A creates `spotforge/generation.py` + optional `generation_routes.py` exporting `create_router(store)` implementing models/generate/resume. Provider credentials ONLY explicit environment FAL_KEY, no credential discovery or paid tests. No auto model fallback. It owns no main API/store/models changes; propose necessary additions to coordinator. Jobs use common collection. Final brand/gate/read-modify-write validation under lock; network work outside lock.
 Agent B creates `spotforge/brands.py` exporting `create_router(store)` implementing brands + project brand routes, validation/snapshots; optional `studio/src/BrandPanel.jsx` default component props `{brands,assets,onRefresh,onError}` using same-origin API. Coordinate directly with C. `colors` keys primary/background/text. Fonts and logos assets must exist and match kind. Profile versions immutable.
