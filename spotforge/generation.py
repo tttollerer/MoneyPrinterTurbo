@@ -210,6 +210,9 @@ class GenerationService:
                 take = next((t for t in prev.takes if t.id == prev.selected_take_id), None)
                 if take is None:
                     raise GenerationError("Bitte zuerst einen fertigen Vorgänger-Take auswählen.")
+                actual = take.parameters.get("actual_duration_s")
+                if actual is not None and round(prev.duration_s * project.format.fps) < math.ceil(float(actual) * project.format.fps - 1e-6):
+                    raise GenerationError("Vorgänger wurde gekürzt. Für eine Verknüpfung muss sein letzter Frame im Video erhalten bleiben.")
                 asset = Asset.model_validate(self.store.read("assets", take.asset_id))
                 if asset.kind != "video":
                     raise GenerationError("Vorgänger-Take muss ein Video sein.")
@@ -228,6 +231,12 @@ class GenerationService:
             prompt = scene.prompt.strip()
             if brand.get("visual_style"):
                 prompt += "\nVisual style: " + brand["visual_style"]
+            if brand.get("tone"):
+                prompt += "\nBrand tone: " + brand["tone"]
+            if brand.get("rules"):
+                prompt += "\nBrand rules:\n- " + "\n- ".join(brand["rules"])
+            if brand.get("forbidden_claims"):
+                prompt += "\nDo not depict or claim:\n- " + "\n- ".join(brand["forbidden_claims"])
             job = Job(project_id=project_id, scene_id=scene_id, kind="generation", input_snapshot={
                 "project_revision": project.revision, "scene": scene.model_dump(mode="json"),
                 "brand_snapshot": brand, "assets": assets, "predecessor": predecessor,

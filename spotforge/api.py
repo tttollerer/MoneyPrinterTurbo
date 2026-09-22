@@ -2,6 +2,7 @@
 import asyncio
 import io
 import json
+import math
 import mimetypes
 import os
 import subprocess
@@ -118,11 +119,11 @@ def render_manifest(store, p, base_url):
             raise ValueError(f"{scene.title}: Es fehlt ein ausgewählter Clip oder ein lokales Bild.")
         include(aid)
         take = next((t for t in scene.takes if t.id == scene.selected_take_id), None)
-        if take and take.end_asset_id:
-            actual = take.parameters.get("actual_duration_s")
-            if actual is not None and float(actual) > scene.duration_s + 1 / p.format.fps:
-                raise ValueError(f"{scene.title}: Kürzen würde das gewünschte Endbild abschneiden. Dauer mindestens {actual:.2f}s wählen.")
         duration = max(1, round(scene.duration_s * p.format.fps))
+        if take and (take.end_asset_id or any(s.predecessor_scene_id == scene.id for s in p.scenes)):
+            actual = take.parameters.get("actual_duration_s")
+            if actual is not None and duration < math.ceil(float(actual) * p.format.fps - 1e-6):
+                raise ValueError(f"{scene.title}: Kürzen würde das Endbild oder den Übergang zur Folgeszene abschneiden. Dauer mindestens {actual:.2f}s wählen.")
         scenes.append(RenderScene(id=scene.id, asset_id=aid, from_frame=cursor,
                                   duration_frames=duration, onscreen_text=scene.onscreen_text))
         cursor += duration
@@ -276,6 +277,8 @@ def create_app(data_dir=None, output_dir=None):
             changed = {k for k, v in body.items() if getattr(scene, k) != v}
             if changed & {"mode", "prompt", "start_asset_id", "end_asset_id", "predecessor_scene_id", "model"}:
                 updated.stale = bool(scene.takes)
+                mark_descendants(p, sid)
+            if "duration_s" in changed:
                 mark_descendants(p, sid)
             if "source_asset_id" in changed:
                 updated.selected_take_id = None

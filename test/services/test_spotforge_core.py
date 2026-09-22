@@ -138,12 +138,27 @@ def test_format_change_marks_generated_scenes_stale(client):
     assert res.json()["scenes"][0]["stale"]
 
 
-def test_changed_end_conditioned_duration_cannot_truncate_reference(client):
+@pytest.mark.parametrize("actual,planned", [(10,5), (5,4.97)])
+def test_changed_end_conditioned_duration_cannot_truncate_reference(client, actual, planned):
     store = client.app.state.store
     a = store.add_asset(image_bytes(), "frame.png", "image", "image/png")
-    take = Take(asset_id=a.id, end_asset_id=a.id, parameters={"actual_duration_s":10})
-    p = Project(scenes=[Scene(duration_s=5, takes=[take], selected_take_id=take.id)])
+    take = Take(asset_id=a.id, end_asset_id=a.id, parameters={"actual_duration_s":actual})
+    p = Project(scenes=[Scene(duration_s=planned, takes=[take], selected_take_id=take.id)])
     store.write("projects", p.id, p)
     res = client.get(f"/api/projects/{p.id}/manifest")
     assert res.status_code == 422
     assert "Endbild" in res.json()["detail"]
+
+
+def test_shortening_linked_start_only_take_invalidates_and_blocks_boundary(client):
+    store = client.app.state.store
+    a = store.add_asset(image_bytes(), "frame.png", "image", "image/png")
+    take = Take(asset_id=a.id, parameters={"actual_duration_s":5})
+    parent = Scene(mode="start", takes=[take], selected_take_id=take.id)
+    child = Scene(predecessor_scene_id=parent.id, source_asset_id=a.id)
+    p = Project(scenes=[parent,child])
+    store.write("projects", p.id, p)
+    res = client.patch(f"/api/projects/{p.id}/scenes/{parent.id}", json={"duration_s":3})
+    assert res.status_code == 200
+    assert res.json()["scenes"][1]["stale"]
+    assert "Übergang" in client.get(f"/api/projects/{p.id}/manifest").json()["detail"]

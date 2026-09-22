@@ -117,6 +117,9 @@ def test_reference_mismatch_or_corruption_block_before_paid_request(fixture):
 
 def test_inputs_persisted_before_submit_and_take_snapshots(fixture, video):
     store, project, image, end = fixture
+    project.brand_snapshot.rules = ["Keep packaging readable"]
+    project.brand_snapshot.forbidden_claims = ["Guaranteed results"]
+    store.write("projects", project.id, project)
     provider = FakeProvider(video)
     svc = service(store, provider)
     job = svc.start(project.id, project.scenes[0].id, True, 1)
@@ -129,6 +132,8 @@ def test_inputs_persisted_before_submit_and_take_snapshots(fixture, video):
     assert payload["tail_image_url"] != payload["image_url"]
     assert payload["duration"] == "5"
     assert "Clean daylight" in payload["prompt"]
+    assert "Keep packaging readable" in payload["prompt"]
+    assert "Do not depict or claim:\n- Guaranteed results" in payload["prompt"]
     final = store.read("jobs", job.id)
     assert final["state"] == "complete"
     take = store.read("projects", project.id)["scenes"][0]["takes"][0]
@@ -241,6 +246,22 @@ def test_real_predecessor_last_frame_pinned_and_old_take_preserved(fixture, vide
     assert new_take["start_asset_id"] is not None
     assert store.asset_path(new_take["start_asset_id"]).exists()
     assert updated["scenes"][0]["selected_take_id"] == take.id
+
+
+def test_truncated_predecessor_rejected_before_paid_submission(fixture, video):
+    store, project, _, _ = fixture
+    asset = store.add_asset(video, "previous.mp4", "video", "video/mp4")
+    take = Take(asset_id=asset.id, parameters={"actual_duration_s":5})
+    previous = Scene(duration_s=4.97, takes=[take], selected_take_id=take.id)
+    target = project.scenes[0]
+    target.predecessor_scene_id, target.start_asset_id = previous.id, None
+    project.scenes.insert(0, previous)
+    store.write("projects", project.id, project)
+    provider = FakeProvider(video)
+    with pytest.raises(GenerationError, match="gekürzt"):
+        service(store, provider).start(project.id, target.id, True, 1)
+    assert store.list("jobs") == []
+    assert provider.submissions == []
 
 
 def test_router_returns_friendly_validation_and_capabilities(fixture, monkeypatch):

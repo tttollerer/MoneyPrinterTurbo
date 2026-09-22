@@ -75,7 +75,10 @@ function SceneEditor({
 }) {
   const [draft, setDraft] = useState(scene);
   const [confirm, setConfirm] = useState(false);
-  const edit = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
+  const edit = (key, value) => {
+    setConfirm(false);
+    setDraft((d) => ({ ...d, [key]: value }));
+  };
   const changed = JSON.stringify(draft) !== JSON.stringify(scene);
   const model = models.find((m) => m.id === draft.model);
   const supported = !!model?.modes?.includes(draft.mode);
@@ -309,10 +312,11 @@ function SceneEditor({
             die gespeicherten Bilder, Markenregeln und Projektrevision{" "}
             {project.revision}. Es wird genau ein Auftrag gestartet.
           </p>
+          <p>Preis nicht verfügbar. Bitte den aktuellen Anbieterpreis vor der Bestätigung prüfen.</p>
           <div className="row">
             <button
               className="primary"
-              disabled={busy}
+              disabled={busy || changed || !supported || !configured}
               onClick={() => {
                 setConfirm(false);
                 onGenerate();
@@ -340,10 +344,10 @@ function SceneEditor({
                 Ansehen
               </a>
               <button
-                disabled={busy || scene.selected_take_id === take.id}
+                disabled={busy || (scene.selected_take_id === take.id && !scene.stale)}
                 onClick={() => onSelect(take.id)}
               >
-                {scene.selected_take_id === take.id
+                {scene.stale ? "Take bewusst übernehmen" : scene.selected_take_id === take.id
                   ? "Ausgewählt"
                   : "Auswählen"}
               </button>
