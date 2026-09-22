@@ -50,6 +50,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --python ${{ matrix.python-version }}
 
+      - name: Install local media tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Compile Python sources
         run: uv run --no-sync python -m compileall app cli.py main.py webui test docs/skill spotforge
 

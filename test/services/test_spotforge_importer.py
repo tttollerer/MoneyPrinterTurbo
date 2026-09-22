@@ -3,6 +3,8 @@ import hashlib
 import io
 import json
 import subprocess
+import tempfile
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -24,6 +26,18 @@ def png(color="red"):
     output = io.BytesIO()
     Image.new("RGB", (64, 64), color).save(output, format="PNG")
     return output.getvalue()
+
+
+def test_disguised_concat_cannot_read_media_outside_source(tiny_video):
+    from spotforge.importer import _verify_media
+    with tempfile.TemporaryDirectory(prefix="spotforge-outside-") as directory:
+        outside = Path(directory) / "external.mp4"
+        outside.write_bytes(tiny_video)
+        # Both the external folder and the probe's temporary input live below
+        # the system temp directory; concat autodetection would follow this path.
+        playlist = f"ffconcat version 1.0\nfile '{Path(directory).name}/external.mp4'\n".encode()
+        with pytest.raises(subprocess.CalledProcessError):
+            _verify_media(playlist, "disguised.mp4", "video")
 
 
 @pytest.fixture

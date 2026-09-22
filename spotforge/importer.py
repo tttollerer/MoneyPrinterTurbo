@@ -20,6 +20,7 @@ from PIL import Image
 from pydantic import Field, StrictBool, ValidationError
 
 from spotforge.brands import BRAND_FIELDS, validate_brand
+from spotforge.media import local_input_options
 from spotforge.models import Brand, Cue, Model, Project, new_id
 
 LIMITS = {"manifest_bytes": 5 * 1024 * 1024, "file_bytes": 100 * 1024 * 1024,
@@ -354,7 +355,7 @@ def _verify_media(content, path, kind):
         with tempfile.NamedTemporaryFile(suffix=Path(path).suffix) as temporary:
             temporary.write(content)
             temporary.flush()
-            result = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", temporary.name], capture_output=True, text=True, timeout=20, check=True)
+            result = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", *local_input_options(temporary.name), temporary.name], capture_output=True, text=True, timeout=20, check=True)
         if kind not in {stream.get("codec_type") for stream in json.loads(result.stdout).get("streams", [])}:
             raise ImportProblem("Datei enthält keine passende Medien-Spur.")
     elif Path(path).suffix.lower() == ".pdf" and not content.startswith(b"%PDF-"):

@@ -19,7 +19,7 @@ Standardordner:
 - Projekte, Marken, Medien und Aufträge: `~/Documents/Video Generator/spotforge-data`
 - Fertige Videos: `~/Documents/Video Generator/Ausgaben/SpotForge/<Auftrags-ID>/video.mp4`
 
-`SPOTFORGE_DATA_DIR` und `SPOTFORGE_OUTPUT_DIR` überschreiben diese Ordner. Die Daten liegen getrennt vom Code; vorhandene Projekte anderer Anwendungen werden nicht verändert. Für eine Sicherung den Server beenden und beide Ordner kopieren. Ein automatischer Import alter Projektformate ist noch nicht enthalten. Pro Datenordner darf genau ein Server laufen. Der Server bindet nur an `127.0.0.1` und ist nicht für öffentliche Bereitstellung oder mehrere Benutzer vorgesehen.
+`SPOTFORGE_DATA_DIR` und `SPOTFORGE_OUTPUT_DIR` überschreiben diese Ordner. Die Daten liegen getrennt vom Code; vorhandene Projekte anderer Anwendungen werden nicht verändert. Für eine Sicherung den Server beenden und beide Ordner kopieren. Pro Datenordner darf genau ein Server laufen. Der Server bindet nur an `127.0.0.1` und ist nicht für öffentliche Bereitstellung oder mehrere Benutzer vorgesehen.
 
 ## Erstes Video
 
@@ -38,6 +38,14 @@ Szenen lassen sich über Pfeile umordnen. Eine verknüpfte Szene bleibt hinter i
 Stock-Suche ist mit `PEXELS_API_KEY` beziehungsweise `PIXABAY_API_KEY` in der Serverumgebung möglich. Die Suche wird nur auf ausdrücklichen Klick gestartet, übermittelt den Suchbegriff an den gewählten Anbieter und zeigt dessen Quellenlinks. Erst die bewusste Auswahl eines Treffers lädt einen Clip in das lokale Projekt. Die ursprüngliche Upstream-Konfiguration wird nicht automatisch gelesen oder verändert. Die Adapter folgen den [Pexels-](https://www.pexels.com/api/documentation/) und [Pixabay-Schnittstellen](https://pixabay.com/api/docs/); Lizenz und Herkunft des ausgewählten Materials bleiben relevant. Ohne Schlüssel sind die entsprechenden Aktionen deaktiviert.
 
 Mac-Sprachausgabe benötigt keinen API-Schlüssel. Sie verwendet ausschließlich lokal installierte `say`-Stimmen und FFmpeg. Bei einem Projektwechsel während der Verarbeitung bleibt das Ergebnis als Asset und Auftragsresultat erhalten, wird aber nicht über neuere Eingaben geschrieben. Fehlgeschlagene oder unterbrochene Medienaufträge starten nach einem Neustart nicht automatisch erneut.
+
+## Bestehende Projekte übernehmen
+
+Im Reiter „Projekt importieren“ den lokalen Quellordner und die relativ dazu liegende `project.json` (Version 3) oder alte `spot.json` auswählen. Liegen Marke und Projekt in unterschiedlichen Unterordnern, ihren gemeinsamen Arbeitsordner als Quelle und beispielsweise `projects/mein-projekt/project.json` als Projektdatei verwenden. Erst die Importvorschau prüfen, dann die neue Kopie ausdrücklich bestätigen.
+
+Der Import erhält vorhandene Video-Takes samt Auswahl, Referenzbilder, Audio, Untertitel und passende Markendaten. Bild-Takes, frühere Exporte und nicht direkt darstellbare Zuordnungen bleiben über den Importbericht nachvollziehbar. Fehlende Medien oder Pfade außerhalb der ausgewählten Quelle blockieren den Import. Fremde Verzeichnisse werden nicht durchsucht, entfernte Medien nicht automatisch heruntergeladen und Zugangsdaten nicht übernommen. Unbekannte Felder und nicht übertragbare Markenangaben werden als Einschränkungen angezeigt. Eigene Markenfonts benötigen eine lokale Font-Datei.
+
+Die Originale bleiben unverändert; jeder Import erstellt ein neues Projekt. Frühere Freigaben werden zurückgesetzt. Grenzen: 100 Szenen, 500 Dateien, 100 MB pro Datei und 500 MB insgesamt. Es wurden ausschließlich synthetische Importbeispiele geprüft; echte Nutzerprojekte sollten zunächst anhand der Vorschau kontrolliert werden.
 
 ## Start- und Endbilder
 

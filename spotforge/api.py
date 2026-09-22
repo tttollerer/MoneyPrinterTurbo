@@ -18,6 +18,7 @@ from PIL import Image
 from pydantic import ValidationError
 
 from spotforge.models import Asset, Brand, Job, Project, RenderManifest, RenderScene, Scene, now
+from spotforge.media import local_input_options
 from spotforge.store import Store
 
 REPO = Path(__file__).resolve().parents[1]
@@ -170,7 +171,7 @@ def render_manifest(store, p, base_url):
 
 def probe_duration(path):
     result = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                             "-of", "json", str(path)], capture_output=True, text=True, timeout=15, check=True)
+                             "-of", "json", *local_input_options(path), str(path)], capture_output=True, text=True, timeout=15, check=True)
     return float(json.loads(result.stdout)["format"]["duration"])
 
 
@@ -413,7 +414,7 @@ def create_app(data_dir=None, output_dir=None):
         a = store.add_asset(bytes(content), name, kind, mimetypes.guess_type(name)[0] or "application/octet-stream")
         if kind in {"audio", "video"}:
             try:
-                result = await asyncio.to_thread(subprocess.run, ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", str(store.asset_path(a.id))], capture_output=True, text=True, timeout=15, check=True)
+                result = await asyncio.to_thread(subprocess.run, ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", *local_input_options(store.asset_path(a.id)), str(store.asset_path(a.id))], capture_output=True, text=True, timeout=15, check=True)
                 types = [s["codec_type"] for s in json.loads(result.stdout)["streams"]]
                 if kind not in types:
                     raise ValueError("Datei enthält keine passende Medien-Spur.")
@@ -555,9 +556,11 @@ def create_app(data_dir=None, output_dir=None):
     from spotforge.brands import create_router as brand_router
     from spotforge.generation import create_router as generation_router
     from spotforge.workflow import create_router as workflow_router
+    from spotforge.importer import create_router as importer_router
     app.include_router(brand_router(store))
     app.include_router(generation_router(store), prefix="/api")
     app.include_router(workflow_router(store), prefix="/api")
+    app.include_router(importer_router(store), prefix="/api")
 
     @app.get("/{rest:path}")
     def frontend(rest: str):

@@ -23,6 +23,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from spotforge.models import Cue, Job, Project, Scene, new_id, now
+from spotforge.media import local_input_options
 
 KINDS = {"speech", "stock_import"}
 MAX_DOWNLOAD = 250 * 1024 * 1024
@@ -220,7 +221,7 @@ def probe_video(content):
         path = Path(tmp) / "source.mp4"
         path.write_bytes(content)
         data = json.loads(run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-                               "stream=codec_type,width,height:format=duration", "-of", "json", path], timeout=30).stdout)
+                               "stream=codec_type,width,height:format=duration", "-of", "json", *local_input_options(path), path], timeout=30).stdout)
     stream = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"), None)
     duration = float(data.get("format", {}).get("duration", 0))
     if not stream or not math.isfinite(duration) or duration <= 0:

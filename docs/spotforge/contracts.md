@@ -28,6 +28,9 @@ All errors are JSON `{detail: string}` (validation may return FastAPI detail arr
 - POST /api/projects/{id}/render -> Job; GET /api/projects/{id}/manifest -> RenderManifest for preview
 - GET /api/outputs/{job_id}/preview -> MP4 before final human approval
 - GET /api/outputs/{job_id} -> MP4; spot projects require final approval of this current export
+- POST /api/imports/preview {source_dir,project_file?,brand_file?} -> token, summary, media, warnings, errors, can_import; no writes
+- POST /api/imports/commit {source_dir,project_file?,brand_file?,token,confirmed} -> new Project; source fingerprint must still match
+- GET /api/imports/{project_id}/report -> preserved media/frame-take/export mappings and visible migration warnings
 
 Agent A creates `spotforge/generation.py` + optional `generation_routes.py` exporting `create_router(store)` implementing models/generate/resume. Provider credentials ONLY explicit environment FAL_KEY, no credential discovery or paid tests. No auto model fallback. It owns no main API/store/models changes; propose necessary additions to coordinator. Jobs use common collection. Final brand/gate/read-modify-write validation under lock; network work outside lock.
 Agent B creates `spotforge/brands.py` exporting `create_router(store)` implementing brands + project brand routes, validation/snapshots; optional `studio/src/BrandPanel.jsx` default component props `{brands,assets,onRefresh,onError}` using same-origin API. Coordinate directly with C. `colors` keys primary/background/text. Fonts and logos assets must exist and match kind. Profile versions immutable.

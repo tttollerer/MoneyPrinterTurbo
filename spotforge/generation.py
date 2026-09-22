@@ -23,6 +23,7 @@ from PIL import Image
 from pydantic import BaseModel, ConfigDict
 
 from spotforge.models import Asset, Job, Project, Take, now
+from spotforge.media import local_input_options
 
 MODEL = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
 ACTIVE = {"queued", "submitting", "running", "interrupted", "unknown"}
@@ -298,7 +299,7 @@ class GenerationService:
             raise GenerationError("Vorgängerdatei wurde seit Bestätigung verändert.")
         with tempfile.TemporaryDirectory(prefix="spotforge-frame-") as tmp:
             target = Path(tmp) / "last.png"
-            subprocess.run(["ffmpeg", "-v", "error", "-sseof", "-1", "-i", str(source),
+            subprocess.run(["ffmpeg", "-v", "error", "-sseof", "-1", *local_input_options(source), "-i", str(source),
                             "-update", "1", "-y", str(target)], check=True, capture_output=True, timeout=90)
             asset = self.store.add_asset(target.read_bytes(), "predecessor-last.png", "image", "image/png")
         job.input_snapshot["start_asset_id"] = asset.id
@@ -377,7 +378,7 @@ class GenerationService:
             target = Path(tmp) / "clip.mp4"
             target.write_bytes(content)
             probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-                                    "stream=codec_type,width,height:format=duration", "-of", "json", str(target)],
+                                    "stream=codec_type,width,height:format=duration", "-of", "json", *local_input_options(target), str(target)],
                                    check=True, capture_output=True, text=True, timeout=30)
             info = json.loads(probe.stdout)
             stream = next((s for s in info.get("streams", []) if s.get("codec_type") == "video"), None)
