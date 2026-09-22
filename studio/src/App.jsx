@@ -2,8 +2,12 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Player } from "@remotion/player";
 import { VideoComposition } from "../../renderer/src/Composition.jsx";
 import { request, assetUrl } from "./api.js";
+import WorkflowPanel from "./WorkflowPanel.jsx";
+import { reorderedSceneIds, jobLabel, jobStateLabel } from "./workflow.js";
 const brandModules = import.meta.glob("./BrandPanel.jsx", { eager: true });
 const BrandPanel = Object.values(brandModules)[0]?.default;
+const importModules = import.meta.glob("./ImportPanel.jsx", { eager: true });
+const ImportPanel = Object.values(importModules)[0]?.default;
 const MODES = {
   local: "Eigenes Material",
   text: "Nur Text",
@@ -312,7 +316,10 @@ function SceneEditor({
             die gespeicherten Bilder, Markenregeln und Projektrevision{" "}
             {project.revision}. Es wird genau ein Auftrag gestartet.
           </p>
-          <p>Preis nicht verfügbar. Bitte den aktuellen Anbieterpreis vor der Bestätigung prüfen.</p>
+          <p>
+            Preis nicht verfügbar. Bitte den aktuellen Anbieterpreis vor der
+            Bestätigung prüfen.
+          </p>
           <div className="row">
             <button
               className="primary"
@@ -344,12 +351,16 @@ function SceneEditor({
                 Ansehen
               </a>
               <button
-                disabled={busy || (scene.selected_take_id === take.id && !scene.stale)}
+                disabled={
+                  busy || (scene.selected_take_id === take.id && !scene.stale)
+                }
                 onClick={() => onSelect(take.id)}
               >
-                {scene.stale ? "Take bewusst übernehmen" : scene.selected_take_id === take.id
-                  ? "Ausgewählt"
-                  : "Auswählen"}
+                {scene.stale
+                  ? "Take bewusst übernehmen"
+                  : scene.selected_take_id === take.id
+                    ? "Ausgewählt"
+                    : "Auswählen"}
               </button>
             </div>
           ))}
@@ -681,6 +692,12 @@ export default function App() {
           >
             Marken & Styleguides
           </button>
+          <button
+            className={tab === "import" ? "selected" : ""}
+            onClick={() => setTab("import")}
+          >
+            Bestehendes Projekt importieren
+          </button>
         </nav>
         <h3>Deine Projekte</h3>
         <div className="project-list">
@@ -747,7 +764,9 @@ export default function App() {
             <h1>
               {tab === "brands"
                 ? "Marken & Styleguides"
-                : project?.title || "Dein nächstes Video"}
+                : tab === "import"
+                  ? "Bestehendes Projekt importieren"
+                  : project?.title || "Dein nächstes Video"}
             </h1>
             <p className="muted">
               {tab === "brands"
@@ -789,6 +808,22 @@ export default function App() {
           ) : (
             <section className="panel">
               Die Markenverwaltung wird mit dem Markenmodul bereitgestellt.
+            </section>
+          )
+        ) : tab === "import" ? (
+          ImportPanel ? (
+            <ImportPanel
+              onImported={(p) => {
+                updateProject(p);
+                setActive(p.scenes[0]?.id || "");
+                setTab("edit");
+                refresh().catch((e) => setError(e.message));
+              }}
+              onError={(e) => setError(typeof e === "string" ? e : e.message)}
+            />
+          ) : (
+            <section className="panel">
+              Das Importmodul ist in diesem Arbeitsstand noch nicht verfügbar.
             </section>
           )
         ) : !project ? (
@@ -860,6 +895,21 @@ export default function App() {
                 onApply={(body) => change("/brand", body)}
               />
             </div>
+            <WorkflowPanel
+              key={project.id}
+              project={project}
+              jobs={projectJobs}
+              busy={busy}
+              onRun={run}
+              onProjectChange={updateProject}
+              onRefresh={refresh}
+              onJobCreated={(job) =>
+                setJobs((current) => [
+                  job,
+                  ...current.filter((j) => j.id !== job.id),
+                ])
+              }
+            />
             <div className="workspace">
               <div>
                 <section className="panel preview">
@@ -903,20 +953,62 @@ export default function App() {
                       + Szene
                     </button>
                   </div>
+                  {!!project.captions.length && project.scenes.length > 1 && (
+                    <p className="muted">
+                      Zum Umordnen zuerst die zeitgebundenen Untertitel
+                      entfernen und danach neu abstimmen.
+                    </p>
+                  )}
                   <div className="scene-strip">
                     {project.scenes.map((s, i) => (
-                      <button
-                        key={s.id}
-                        className={`scene-card ${active === s.id ? "selected" : ""}`}
-                        onClick={() => setActive(s.id)}
-                      >
-                        <span>{String(i + 1).padStart(2, "0")}</span>
-                        <strong>{s.title}</strong>
-                        <small>
-                          {s.duration_s}s · {MODES[s.mode]}{" "}
-                          {s.stale ? "· Veraltet" : ""}
-                        </small>
-                      </button>
+                      <div className="scene-entry" key={s.id}>
+                        <button
+                          className={`scene-card ${active === s.id ? "selected" : ""}`}
+                          onClick={() => setActive(s.id)}
+                        >
+                          <span>{String(i + 1).padStart(2, "0")}</span>
+                          <strong>{s.title}</strong>
+                          <small>
+                            {s.duration_s}s · {MODES[s.mode]}{" "}
+                            {s.stale ? "· Veraltet" : ""}
+                          </small>
+                        </button>
+                        <div className="scene-reorder">
+                          {[
+                            [-1, "←", "Nach vorne"],
+                            [1, "→", "Nach hinten"],
+                          ].map(([direction, arrow, label]) => {
+                            const ids = reorderedSceneIds(
+                              project.scenes,
+                              s.id,
+                              direction,
+                            );
+                            const captionLock = !!project.captions.length;
+                            return (
+                              <button
+                                key={direction}
+                                aria-label={`${s.title}: ${label}`}
+                                title={
+                                  captionLock
+                                    ? "Vor Umordnung vorhandene Untertitel entfernen und danach neu abstimmen."
+                                    : !ids
+                                      ? "Grenze oder verknüpfte Vorgängerszene verhindert diese Umordnung."
+                                      : label
+                                }
+                                disabled={busy || !ids || captionLock}
+                                onClick={() =>
+                                  change("/scenes/reorder", {
+                                    scene_ids: ids,
+                                    expected_revision: project.revision,
+                                  })
+                                }
+                              >
+                                {arrow}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     ))}
                     {!project.scenes.length && (
                       <p className="muted">Füge die erste Szene hinzu.</p>
@@ -1027,10 +1119,8 @@ export default function App() {
                   {projectJobs.map((j) => (
                     <div className="job" key={j.id}>
                       <div className="row spread">
-                        <strong>
-                          {j.kind === "render" ? "Export" : "Generierung"}
-                        </strong>
-                        <span>{j.state}</span>
+                        <strong>{jobLabel(j.kind)}</strong>
+                        <span>{jobStateLabel(j.state)}</span>
                       </div>
                       <progress max="1" value={j.progress} />
                       {j.error && <p className="error">{j.error}</p>}
