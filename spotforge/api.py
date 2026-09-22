@@ -5,6 +5,7 @@ import json
 import math
 import mimetypes
 import os
+import signal
 import subprocess
 import threading
 from contextlib import asynccontextmanager
@@ -29,6 +30,25 @@ SUFFIXES = {
     ".ttf": "font", ".otf": "font", ".woff": "font", ".woff2": "font",
     ".pdf": "document", ".txt": "document", ".md": "document",
 }
+
+
+def stop_render_process(proc):
+    """Stop only the worker's own isolated process group (Node + browser/media children)."""
+    def send(sig):
+        try:
+            if os.name == "posix":
+                os.killpg(proc.pid, sig)
+            elif sig == signal.SIGTERM:
+                proc.terminate()
+            else:
+                proc.kill()
+        except ProcessLookupError:
+            pass
+    send(signal.SIGTERM)
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        send(signal.SIGKILL)
 
 
 def project(store, pid):
@@ -168,11 +188,7 @@ def create_app(data_dir=None, output_dir=None):
         yield
         for proc in list(processes.values()):
             if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
+                stop_render_process(proc)
 
     app = FastAPI(title="SpotForge Local", lifespan=lifespan)
     app.state.store = store
@@ -438,15 +454,12 @@ def create_app(data_dir=None, output_dir=None):
             manifest_path = store.path("renders", jid)
             store.write("renders", jid, mf)
             proc = subprocess.Popen(["node", str(REPO / "renderer/render.mjs"), str(manifest_path), str(output)],
-                                    cwd=REPO / "renderer", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                                    cwd=REPO / "renderer", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    start_new_session=os.name == "posix")
             processes[jid] = proc
             def stop_after_timeout():
                 timed_out.set()
-                proc.terminate()
-                try:
-                    proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
+                stop_render_process(proc)
             timer = threading.Timer(15 * 60, stop_after_timeout)
             timer.daemon = True
             timer.start()
@@ -513,7 +526,7 @@ def create_app(data_dir=None, output_dir=None):
             if not proc or proc.poll() is not None:
                 raise HTTPException(409, "Dieser Render läuft nicht mehr.")
             cancellations.add(jid)
-            proc.terminate()
+            stop_render_process(proc)
             return {"id": jid, "state": "interrupted"}
 
     @app.get("/api/outputs/{jid}/preview")
