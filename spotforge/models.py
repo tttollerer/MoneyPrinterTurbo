@@ -119,6 +119,8 @@ class Project(Model):
     id: str = Field(default_factory=new_id)
     revision: int = Field(default=1, ge=1)
     title: str = Field(default="Neues Video", min_length=1, max_length=200)
+    brief: str = Field(default="", max_length=8000)
+    script: str = Field(default="", max_length=12000)
     recipe: Literal["free", "spot"] = "free"
     format: Format = Field(default_factory=Format)
     brand_snapshot: Brand | None = None
@@ -134,7 +136,7 @@ class Job(Model):
     id: str = Field(default_factory=new_id)
     project_id: str
     scene_id: str | None = None
-    kind: Literal["generation", "render"]
+    kind: Literal["generation", "render", "speech", "stock_import"]
     state: Literal["queued", "submitting", "running", "complete", "failed", "interrupted", "unknown"] = "queued"
     progress: float = Field(default=0, ge=0, le=1)
     provider_request_id: str | None = None

@@ -24,7 +24,9 @@
     "kind": {
       "enum": [
         "generation",
-        "render"
+        "render",
+        "speech",
+        "stock_import"
       ],
       "title": "Kind",
       "type": "string"

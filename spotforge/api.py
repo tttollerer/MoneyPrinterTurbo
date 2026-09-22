@@ -215,7 +215,7 @@ def create_app(data_dir=None, output_dir=None):
     @app.post("/api/projects")
     def create_project(body: dict):
         fields = {k: v for k, v in body.items() if k not in {"brand_id", "brand_version"}}
-        if set(fields) - {"title", "recipe", "format"}:
+        if set(fields) - {"title", "recipe", "format", "brief", "script"}:
             raise ValueError("Unbekannte Projektfelder.")
         p = Project.model_validate(fields)
         if p.recipe == "spot":
@@ -237,7 +237,7 @@ def create_app(data_dir=None, output_dir=None):
             expected = body.pop("expected_revision", None)
             if expected is not None and expected != p.revision:
                 raise HTTPException(409, "Projekt wurde inzwischen geändert. Neu laden.")
-            if set(body) - {"title", "format", "audio", "captions"}:
+            if set(body) - {"title", "format", "audio", "captions", "brief", "script"}:
                 raise ValueError("Unbekannte oder geschützte Projektfelder.")
             old_format = p.format.model_dump()
             p = Project.model_validate({**p.model_dump(), **body})
@@ -247,8 +247,10 @@ def create_app(data_dir=None, output_dir=None):
                     if scene.takes and scene.mode != "local":
                         scene.stale = True
                 invalidate_gates(p, "storyboard")
-            if set(body) & {"captions", "audio"}:
+            if set(body) & {"captions", "audio", "script"}:
                 invalidate_gates(p, "script")
+            if "brief" in body:
+                invalidate_gates(p, "concept")
             return save_project(store, p)
 
     @app.post("/api/projects/{pid}/scenes")
@@ -262,6 +264,25 @@ def create_app(data_dir=None, output_dir=None):
             p.scenes.append(Scene.model_validate(body))
             check_assets(store, p)
             invalidate_gates(p)
+            return save_project(store, p)
+
+    @app.post("/api/projects/{pid}/scenes/reorder")
+    def reorder_scenes(pid: str, body: dict):
+        with store.lock:
+            p = project(store, pid)
+            if set(body) != {"scene_ids", "expected_revision"}:
+                raise ValueError("Szenen-IDs und erwartete Projektrevision erforderlich.")
+            if body["expected_revision"] != p.revision:
+                raise HTTPException(409, "Projekt wurde inzwischen geändert. Neu laden.")
+            ids = body["scene_ids"]
+            current = {scene.id: scene for scene in p.scenes}
+            if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids) or len(ids) != len(current) or set(ids) != set(current):
+                raise ValueError("Jede vorhandene Szene muss genau einmal angegeben werden.")
+            p.scenes = [current[i] for i in ids]
+            check_assets(store, p)  # A dependency must still precede its child.
+            if p.captions:
+                raise HTTPException(409, "Vor dem Umordnen zeitgebundene Untertitel entfernen und danach neu abstimmen.")
+            invalidate_gates(p, "storyboard")
             return save_project(store, p)
 
     @app.patch("/api/projects/{pid}/scenes/{sid}")

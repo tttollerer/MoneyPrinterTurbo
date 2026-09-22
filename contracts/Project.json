@@ -527,6 +527,18 @@
       "title": "Title",
       "type": "string"
     },
+    "brief": {
+      "default": "",
+      "maxLength": 8000,
+      "title": "Brief",
+      "type": "string"
+    },
+    "script": {
+      "default": "",
+      "maxLength": 12000,
+      "title": "Script",
+      "type": "string"
+    },
     "recipe": {
       "default": "free",
       "enum": [
