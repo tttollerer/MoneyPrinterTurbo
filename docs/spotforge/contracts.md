@@ -17,6 +17,10 @@ All errors are JSON `{detail: string}` (validation may return FastAPI detail arr
 - GET /api/brands/{id}?version=N -> Brand; POST /api/brands/{id}/versions Brand input -> new Brand version
 - POST /api/projects/{id}/brand {brand_id,version?} -> Project (explicit applies snapshot; invalidate output/freigaben)
 - GET /api/models -> capability objects (id,label,modes)
+- GET /api/workflow/capabilities -> installed local speech voices and explicit stock credential availability
+- POST /api/projects/{id}/speech {confirmed,expected_revision,voice,rate} -> durable speech Job; saved script becomes local PCM audio and sentence captions, applied only if project revision is unchanged
+- POST /api/stock/search {provider,query,orientation,confirmed} -> candidates with server-owned selection IDs
+- POST /api/projects/{id}/stock/import {selection_id,expected_revision,confirmed,scene_id?} -> stock_import Job; result retains local asset/source metadata even if project changed
 - POST /api/projects/{id}/scenes/{sid}/generate {confirmed:bool,expected_revision:int} -> Job
 - GET /api/jobs -> Job[]; GET /api/jobs/{id} -> Job
 - POST /api/jobs/{id}/resume {confirmed:bool,provider_request_id?:string} -> Job; polls an existing request without resubmission. Explicit ID assignment is only allowed for unknown jobs without an ID.

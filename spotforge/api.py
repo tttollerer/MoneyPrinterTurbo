@@ -368,7 +368,9 @@ def create_app(data_dir=None, output_dir=None):
             if body["approve"]:
                 if any(p.gates.get(g) != "approved" for g in GATES[:GATES.index(gate)]):
                     raise HTTPException(409, "Vorherige Freigaben fehlen.")
-                if gate in {"script", "storyboard", "clips"} and not p.scenes:
+                if gate == "script" and not p.script.strip() and not p.scenes:
+                    raise ValueError("Bitte zuerst ein Skript schreiben oder Szenentexte planen.")
+                if gate in {"storyboard", "clips"} and not p.scenes:
                     raise ValueError("Bitte zuerst Szenen planen.")
                 if gate == "clips" and any(s.stale or not selected_asset(s) for s in p.scenes):
                     raise ValueError("Bitte alle Szenen fertigstellen und Takes prüfen.")
@@ -552,8 +554,10 @@ def create_app(data_dir=None, output_dir=None):
 
     from spotforge.brands import create_router as brand_router
     from spotforge.generation import create_router as generation_router
+    from spotforge.workflow import create_router as workflow_router
     app.include_router(brand_router(store))
     app.include_router(generation_router(store), prefix="/api")
+    app.include_router(workflow_router(store), prefix="/api")
 
     @app.get("/{rest:path}")
     def frontend(rest: str):

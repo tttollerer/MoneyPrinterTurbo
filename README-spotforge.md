@@ -1,6 +1,6 @@
 # SpotForge – lokales Video-Studio für den Mac
 
-Dieser Fork ergänzt MoneyPrinterTurbo um ein lokales React-Studio, eine Python-Projektverwaltung und Remotion für Vorschau und MP4-Export. Die ursprüngliche Anwendung bleibt über ihre bisherigen Startbefehle erreichbar. SpotForge ist ein erster nutzbarer Entwicklungsstand; die automatische Skript-, Stock- und TTS-Pipeline von MoneyPrinterTurbo ist noch nicht in die neue Oberfläche integriert.
+Dieser Fork ergänzt MoneyPrinterTurbo um ein lokales React-Studio, eine Python-Projektverwaltung und Remotion für Vorschau und MP4-Export. Die ursprüngliche Anwendung bleibt über ihre bisherigen Startbefehle erreichbar. SpotForge verbindet manuell verfasste Briefings/Skripte, lokale Mac-Sprachausgabe mit Untertiteln, Stockmaterial, bildgesteuerte KI-Clips und versionierte Markenprofile. Die automatische KI-Skripterstellung und die übrigen Upstream-TTS-Anbieter bleiben in der ursprünglichen Anwendung.
 
 ## Starten
 
@@ -26,10 +26,18 @@ Standardordner:
 1. Projekt anlegen, Hoch- oder Querformat wählen. „Frei“ eignet sich zum Ausprobieren; „Spot“ verlangt nacheinander Konzept-, Skript-, Storyboard-, Clip- und finale Freigaben.
 2. Unter „Marken“ ein Profil mit Farben, Logo, Schriftdatei, Textpflichten und Gestaltungsregeln speichern. Eine konkrete Profilversion auf das Projekt anwenden.
 3. Szenen hinzufügen. Für einen lokalen Test ein Bild oder Video hochladen und als Quelle wählen. Szenendauer und eingeblendeten Text speichern. Videoclips müssen mindestens so lang wie ihre Szene sein.
-4. Optional Voiceover/Musik hochladen und zuweisen. Untertitel als zeitlich passende JSON-Liste eintragen. Beispiel: `[{"text":"Hallo Welt","start_ms":0,"end_ms":2000}]`. Karaoke verlangt zusätzlich Wortzeitpunkte; es erzeugt diese nicht selbst.
+4. Im Ablauf-Panel Briefing und Skript speichern. Eine installierte Mac-Stimme wählen und lokal erzeugen; danach das fertige Ergebnis bewusst laden. Die Sprachausgabe enthält aus der tatsächlichen Audiolänge berechnete Satzuntertitel. Beim Rezept „Spot“ vorher Konzept und Skript freigeben. Alternativ Voiceover/Musik hochladen und zuweisen; eigene Untertitel als JSON-Liste eintragen, beispielsweise `[{"text":"Hallo Welt","start_ms":0,"end_ms":2000}]`. Karaoke verlangt zusätzlich Wortzeitpunkte; es erzeugt diese nicht selbst.
 5. Vorschau prüfen, gegebenenfalls Freigaben erteilen und „Rendern“ wählen. Der Render erzeugt keine KI-Kosten. Beim Rezept „Spot“ ist die Vorschau vor der finalen Freigabe verfügbar; der Download wird danach freigegeben.
 
 Die Demo lässt sich nach Einrichtung mit `.venv/bin/python -m spotforge.demo --data-dir "$HOME/Documents/Video Generator/spotforge-data"` anlegen. Sie erzeugt synthetische Medien und lokale deutsche Sprachausgabe mit macOS `say`, zwei Projekte und ein Beispiel-Markenprofil. Wiederholtes Ausführen erzeugt weitere Demos. Es werden keine kostenpflichtigen Anbieter aufgerufen.
+
+Szenen lassen sich über Pfeile umordnen. Eine verknüpfte Szene bleibt hinter ihrem Vorgänger. Zeitgebundene Untertitel müssen vor einer neuen Reihenfolge entfernt und anschließend neu abgestimmt werden. Voiceover darf nicht länger als die gesamte Szeneabfolge sein; Videoclips dürfen nicht kürzer als die vorgesehene Szenendauer sein. Das Studio meldet solche Konflikte vor dem Export.
+
+## Stockmaterial und lokale Sprache
+
+Stock-Suche ist mit `PEXELS_API_KEY` beziehungsweise `PIXABAY_API_KEY` in der Serverumgebung möglich. Die Suche wird nur auf ausdrücklichen Klick gestartet, übermittelt den Suchbegriff an den gewählten Anbieter und zeigt dessen Quellenlinks. Erst die bewusste Auswahl eines Treffers lädt einen Clip in das lokale Projekt. Die ursprüngliche Upstream-Konfiguration wird nicht automatisch gelesen oder verändert. Die Adapter folgen den [Pexels-](https://www.pexels.com/api/documentation/) und [Pixabay-Schnittstellen](https://pixabay.com/api/docs/); Lizenz und Herkunft des ausgewählten Materials bleiben relevant. Ohne Schlüssel sind die entsprechenden Aktionen deaktiviert.
+
+Mac-Sprachausgabe benötigt keinen API-Schlüssel. Sie verwendet ausschließlich lokal installierte `say`-Stimmen und FFmpeg. Bei einem Projektwechsel während der Verarbeitung bleibt das Ergebnis als Asset und Auftragsresultat erhalten, wird aber nicht über neuere Eingaben geschrieben. Fehlgeschlagene oder unterbrochene Medienaufträge starten nach einem Neustart nicht automatisch erneut.
 
 ## Start- und Endbilder
 

@@ -183,7 +183,10 @@ def test_reorder_preserves_all_scenes_and_rejects_invalid_dependencies(client):
 
 
 def test_script_and_brief_edits_reset_their_approval_gates(client):
-    p = client.post("/api/projects", json={"title":"Guided", "recipe":"spot"}).json()
+    p = client.post("/api/projects", json={"title":"Guided", "recipe":"spot", "script":"Skript vor der Szenenplanung."}).json()
+    assert client.post(f"/api/projects/{p['id']}/gates/concept",json={"approve":True}).status_code == 200
+    assert client.post(f"/api/projects/{p['id']}/gates/script",json={"approve":True}).status_code == 200
+    assert client.post(f"/api/projects/{p['id']}/gates/storyboard",json={"approve":True}).status_code == 422
     store = client.app.state.store
     p["gates"] = dict.fromkeys(["concept","script","storyboard","clips","final"], "approved")
     store.write("projects",p["id"],p)
