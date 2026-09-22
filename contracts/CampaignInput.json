@@ -1,0 +1,302 @@
+{
+  "$defs": {
+    "Format": {
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "default": 1080,
+          "maximum": 3840,
+          "minimum": 128,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "default": 1920,
+          "maximum": 3840,
+          "minimum": 128,
+          "title": "Height",
+          "type": "integer"
+        },
+        "fps": {
+          "default": 30,
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        }
+      },
+      "title": "Format",
+      "type": "object"
+    },
+    "MotifInput": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "brief": {
+          "default": "",
+          "maxLength": 8000,
+          "title": "Brief",
+          "type": "string"
+        },
+        "script": {
+          "default": "",
+          "maxLength": 12000,
+          "title": "Script",
+          "type": "string"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Format"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "brand_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Brand Id"
+        },
+        "brand_version": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Brand Version"
+        },
+        "shots": {
+          "items": {
+            "$ref": "#/$defs/ShotInput"
+          },
+          "maxItems": 100,
+          "title": "Shots",
+          "type": "array"
+        },
+        "variants": {
+          "items": {
+            "$ref": "#/$defs/Variant"
+          },
+          "maxItems": 20,
+          "title": "Variants",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "title"
+      ],
+      "title": "MotifInput",
+      "type": "object"
+    },
+    "ShotInput": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "default": "Szene",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "prompt": {
+          "default": "",
+          "maxLength": 6000,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "duration_s": {
+          "default": 5,
+          "maximum": 120,
+          "minimum": 0.1,
+          "title": "Duration S",
+          "type": "number"
+        },
+        "start_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Asset Id"
+        },
+        "end_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Asset Id"
+        },
+        "start_frame": {
+          "default": "",
+          "maxLength": 240,
+          "title": "Start Frame",
+          "type": "string"
+        },
+        "end_frame": {
+          "default": "",
+          "maxLength": 240,
+          "title": "End Frame",
+          "type": "string"
+        }
+      },
+      "title": "ShotInput",
+      "type": "object"
+    },
+    "Variant": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "audience": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Audience",
+          "type": "string"
+        },
+        "cta": {
+          "default": "",
+          "maxLength": 300,
+          "title": "Cta",
+          "type": "string"
+        },
+        "endcard_text": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Endcard Text",
+          "type": "string"
+        },
+        "endcard_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endcard Asset Id"
+        },
+        "duration_s": {
+          "default": 3,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Duration S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "title"
+      ],
+      "title": "Variant",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "title": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "brief": {
+      "default": "",
+      "maxLength": 8000,
+      "title": "Brief",
+      "type": "string"
+    },
+    "format": {
+      "$ref": "#/$defs/Format"
+    },
+    "brand_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brand Id"
+    },
+    "brand_version": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brand Version"
+    },
+    "motifs": {
+      "items": {
+        "$ref": "#/$defs/MotifInput"
+      },
+      "maxItems": 30,
+      "title": "Motifs",
+      "type": "array"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "title": "CampaignInput",
+  "type": "object"
+}

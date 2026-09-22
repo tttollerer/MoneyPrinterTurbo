@@ -1,8 +1,12 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, lazy, Suspense } from "react";
 import { Player } from "@remotion/player";
 import { VideoComposition } from "../../renderer/src/Composition.jsx";
 import { request, assetUrl } from "./api.js";
 import WorkflowPanel from "./WorkflowPanel.jsx";
+const CampaignPanel = lazy(() => import("./CampaignPanel.jsx"));
+const ProviderPanel = lazy(() => import("./ProviderPanel.jsx"));
+const BoundaryPanel = lazy(() => import("./BoundaryPanel.jsx"));
+import { PHASES } from "./campaign.js";
 import { reorderedSceneIds, jobLabel, jobStateLabel } from "./workflow.js";
 const brandModules = import.meta.glob("./BrandPanel.jsx", { eager: true });
 const BrandPanel = Object.values(brandModules)[0]?.default;
@@ -589,11 +593,14 @@ export default function App() {
     [models, setModels] = useState([]),
     [jobs, setJobs] = useState([]);
   const [active, setActive] = useState(""),
-    [tab, setTab] = useState("edit"),
+    [tab, setTab] = useState("campaigns"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [manifest, setManifest] = useState(null),
     [previewError, setPreviewError] = useState("");
+  const [phase, setPhase] = useState("briefing"),
+    [activeCampaign, setActiveCampaign] = useState(null),
+    [campaignContext, setCampaignContext] = useState(null);
   const [newTitle, setNewTitle] = useState(""),
     [recipe, setRecipe] = useState("free");
   const refresh = useCallback(async () => {
@@ -681,6 +688,12 @@ export default function App() {
         <div className="subbrand">LOCAL VIDEO STUDIO</div>
         <nav>
           <button
+            className={tab === "campaigns" ? "selected" : ""}
+            onClick={() => setTab("campaigns")}
+          >
+            Kampagnen
+          </button>
+          <button
             className={tab === "edit" ? "selected" : ""}
             onClick={() => setTab("edit")}
           >
@@ -698,6 +711,12 @@ export default function App() {
           >
             Bestehendes Projekt importieren
           </button>
+          <button
+            className={tab === "providers" ? "selected" : ""}
+            onClick={() => setTab("providers")}
+          >
+            fal.ai & Verbindung
+          </button>
         </nav>
         <h3>Deine Projekte</h3>
         <div className="project-list">
@@ -707,6 +726,8 @@ export default function App() {
               className={project?.id === p.id ? "selected" : ""}
               onClick={() => {
                 setTab("edit");
+                setCampaignContext(null);
+                setPhase("storyboard");
                 loadProject(p.id);
               }}
             >
@@ -729,6 +750,8 @@ export default function App() {
               setActive("");
               setNewTitle("");
               setTab("edit");
+              setCampaignContext(null);
+              setPhase("briefing");
             });
           }}
         >
@@ -762,11 +785,15 @@ export default function App() {
         <header>
           <div>
             <h1>
-              {tab === "brands"
-                ? "Marken & Styleguides"
-                : tab === "import"
-                  ? "Bestehendes Projekt importieren"
-                  : project?.title || "Dein nächstes Video"}
+              {tab === "campaigns"
+                ? "Kampagnen"
+                : tab === "providers"
+                  ? "Verbindungen"
+                  : tab === "brands"
+                    ? "Marken & Styleguides"
+                    : tab === "import"
+                      ? "Bestehendes Projekt importieren"
+                      : project?.title || "Dein nächstes Video"}
             </h1>
             <p className="muted">
               {tab === "brands"
@@ -797,7 +824,44 @@ export default function App() {
             </button>
           </div>
         )}
-        {tab === "brands" ? (
+        {tab === "campaigns" ? (
+          <Suspense
+            fallback={
+              <div className="panel muted">Kampagnen werden geladen …</div>
+            }
+          >
+            <CampaignPanel
+              brands={brands}
+              assets={assets}
+              onUpload={upload}
+              activeId={activeCampaign}
+              onActiveChange={setActiveCampaign}
+              onError={setError}
+              onRefreshProjects={refresh}
+              onOpenProject={(id, nextPhase, context) =>
+                run(async () => {
+                  const p = await request(`/projects/${id}`);
+                  updateProject(p);
+                  setActive(p.scenes[0]?.id || "");
+                  setPhase(nextPhase);
+                  setCampaignContext({ ...context, project_id: id });
+                  setActiveCampaign(context.campaign_id);
+                  setTab("edit");
+                })
+              }
+            />
+          </Suspense>
+        ) : tab === "providers" ? (
+          <Suspense
+            fallback={
+              <div className="panel muted">
+                Verbindungseinstellungen werden geladen …
+              </div>
+            }
+          >
+            <ProviderPanel onChanged={refresh} onError={setError} />
+          </Suspense>
+        ) : tab === "brands" ? (
           BrandPanel ? (
             <BrandPanel
               brands={brands}
@@ -816,6 +880,8 @@ export default function App() {
               onImported={(p) => {
                 updateProject(p);
                 setActive(p.scenes[0]?.id || "");
+                setCampaignContext(null);
+                setPhase("briefing");
                 setTab("edit");
                 refresh().catch((e) => setError(e.message));
               }}
@@ -836,6 +902,27 @@ export default function App() {
           </section>
         ) : (
           <>
+            {campaignContext && (
+              <div className="campaign-breadcrumb">
+                <button className="link" onClick={() => setTab("campaigns")}>
+                  ← {campaignContext.campaign_title}
+                </button>
+                <span> / {campaignContext.motif_title}</span>
+              </div>
+            )}
+            <nav className="phase-nav" aria-label="Produktionsschritte">
+              {PHASES.map((step, index) => (
+                <button
+                  key={step.id}
+                  className={phase === step.id ? "active" : ""}
+                  aria-current={phase === step.id ? "step" : undefined}
+                  onClick={() => setPhase(step.id)}
+                >
+                  <span>{index + 1}</span>
+                  {step.label}
+                </button>
+              ))}
+            </nav>
             <div className="project-controls panel">
               <label className="field">
                 Titel
@@ -895,24 +982,66 @@ export default function App() {
                 onApply={(body) => change("/brand", body)}
               />
             </div>
-            <WorkflowPanel
-              key={project.id}
-              project={project}
-              jobs={projectJobs}
-              busy={busy}
-              onRun={run}
-              onProjectChange={updateProject}
-              onRefresh={refresh}
-              onJobCreated={(job) =>
-                setJobs((current) => [
-                  job,
-                  ...current.filter((j) => j.id !== job.id),
-                ])
-              }
-            />
-            <div className="workspace">
+            <div hidden={phase !== "briefing"}>
+              <WorkflowPanel
+                key={project.id}
+                project={project}
+                jobs={projectJobs}
+                busy={busy}
+                onRun={run}
+                onProjectChange={updateProject}
+                onRefresh={refresh}
+                onJobCreated={(job) =>
+                  setJobs((current) => [
+                    job,
+                    ...current.filter((j) => j.id !== job.id),
+                  ])
+                }
+              />
+            </div>
+            {campaignContext?.motif_key &&
+              campaignContext.project_id === project.id && (
+                <div hidden={phase !== "storyboard"}>
+                  <Suspense
+                    fallback={
+                      <div className="panel muted">
+                        Rahmenbildfolge wird geladen …
+                      </div>
+                    }
+                  >
+                    <BoundaryPanel
+                      key={`${project.id}-${project.revision}`}
+                      campaignId={campaignContext.campaign_id}
+                      motifKey={campaignContext.motif_key}
+                      project={project}
+                      assets={assets}
+                      busy={busy}
+                      onUpload={upload}
+                      onRun={run}
+                      onApplied={(p) => {
+                        updateProject(p);
+                        setActive(p.scenes[0]?.id || "");
+                      }}
+                    />
+                  </Suspense>
+                </div>
+              )}
+            {phase === "production" && campaignContext && (
+              <div className="notice">
+                Du kannst Clips hier einzeln erzeugen oder in der{" "}
+                <button className="link" onClick={() => setTab("campaigns")}>
+                  Kampagnenübersicht einen Batch für ausgewählte Motive
+                  vorbereiten
+                </button>
+                .
+              </div>
+            )}
+            <div className={`workspace phase-${phase}`}>
               <div>
-                <section className="panel preview">
+                <section
+                  className="panel preview"
+                  hidden={phase === "briefing"}
+                >
                   <div className="row spread">
                     <h2>Videovorschau</h2>
                     <button
@@ -937,7 +1066,10 @@ export default function App() {
                   </div>
                   <Preview manifest={manifest} error={previewError} />
                 </section>
-                <section className="panel">
+                <section
+                  className="panel"
+                  hidden={phase === "briefing" || phase === "export"}
+                >
                   <div className="row spread">
                     <h2>Szenen</h2>
                     <button
@@ -1015,88 +1147,105 @@ export default function App() {
                     )}
                   </div>
                 </section>
-                <AudioPanel
-                  key={`${project.id}-${project.revision}`}
-                  project={project}
-                  assets={assets}
-                  busy={busy}
-                  onUpload={upload}
-                  onSave={(body) =>
-                    change(
-                      "",
-                      { ...body, expected_revision: project.revision },
-                      "PATCH",
-                    )
-                  }
-                />
-              </div>
-              <div>
-                {scene ? (
-                  <SceneEditor
-                    key={`${scene.id}-${project.revision}`}
-                    scene={scene}
+                <div hidden={phase !== "production"}>
+                  <AudioPanel
+                    key={`${project.id}-${project.revision}`}
                     project={project}
                     assets={assets}
-                    models={models}
                     busy={busy}
                     onUpload={upload}
                     onSave={(body) =>
-                      change(`/scenes/${scene.id}`, body, "PATCH")
-                    }
-                    onSelect={(id) =>
-                      change(`/scenes/${scene.id}/select`, { take_id: id })
-                    }
-                    onDelete={async () => {
-                      const p = await change(
-                        `/scenes/${scene.id}`,
-                        undefined,
-                        "DELETE",
-                      );
-                      if (p) setActive(p.scenes[0]?.id || "");
-                    }}
-                    onGenerate={() =>
-                      run(async () => {
-                        await request(
-                          `/projects/${project.id}/scenes/${scene.id}/generate`,
-                          {
-                            method: "POST",
-                            body: {
-                              confirmed: true,
-                              expected_revision: project.revision,
-                            },
-                          },
-                        );
-                        await refresh();
-                      })
+                      change(
+                        "",
+                        { ...body, expected_revision: project.revision },
+                        "PATCH",
+                      )
                     }
                   />
-                ) : (
-                  <section className="panel muted">
-                    Wähle eine Szene zum Bearbeiten.
-                  </section>
-                )}
+                </div>
+              </div>
+              <div>
+                <div hidden={phase === "briefing" || phase === "export"}>
+                  {scene ? (
+                    <SceneEditor
+                      key={`${scene.id}-${project.revision}`}
+                      scene={scene}
+                      project={project}
+                      assets={assets}
+                      models={models}
+                      busy={busy}
+                      onUpload={upload}
+                      onSave={(body) =>
+                        change(`/scenes/${scene.id}`, body, "PATCH")
+                      }
+                      onSelect={(id) =>
+                        change(`/scenes/${scene.id}/select`, { take_id: id })
+                      }
+                      onDelete={async () => {
+                        const p = await change(
+                          `/scenes/${scene.id}`,
+                          undefined,
+                          "DELETE",
+                        );
+                        if (p) setActive(p.scenes[0]?.id || "");
+                      }}
+                      onGenerate={() =>
+                        run(async () => {
+                          await request(
+                            `/projects/${project.id}/scenes/${scene.id}/generate`,
+                            {
+                              method: "POST",
+                              body: {
+                                confirmed: true,
+                                expected_revision: project.revision,
+                              },
+                            },
+                          );
+                          await refresh();
+                        })
+                      }
+                    />
+                  ) : (
+                    <section className="panel muted">
+                      Wähle eine Szene zum Bearbeiten.
+                    </section>
+                  )}
+                </div>
                 {project.recipe === "spot" && (
                   <section className="panel">
                     <h2>Freigaben</h2>
-                    {Object.entries(GATES).map(([id, label]) => (
-                      <div className="gate" key={id}>
-                        <span>{label}</span>
-                        <span className="muted">
-                          {project.gates[id] || "offen"}
-                        </span>
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            change(`/gates/${id}`, { approve: true })
-                          }
-                        >
-                          Freigeben
-                        </button>
-                      </div>
-                    ))}
+                    {Object.entries(GATES)
+                      .filter(([id]) =>
+                        phase === "briefing"
+                          ? ["concept", "script"].includes(id)
+                          : phase === "storyboard"
+                            ? ["concept", "script", "storyboard"].includes(id)
+                            : phase === "export"
+                              ? id === "final"
+                              : true,
+                      )
+                      .map(([id, label]) => (
+                        <div className="gate" key={id}>
+                          <span>{label}</span>
+                          <span className="muted">
+                            {project.gates[id] || "offen"}
+                          </span>
+                          <button
+                            disabled={busy}
+                            onClick={() =>
+                              change(`/gates/${id}`, { approve: true })
+                            }
+                          >
+                            Freigeben
+                          </button>
+                        </div>
+                      ))}
                   </section>
                 )}
-                <section className="panel">
+                <section
+                  className="panel"
+                  hidden={phase === "briefing" || phase === "storyboard"}
+                >
                   <h2>Export & Aufträge</h2>
                   <p className="muted">
                     Der Export nutzt vorhandene Takes und startet keine neue
