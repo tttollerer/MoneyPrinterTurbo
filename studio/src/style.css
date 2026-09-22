@@ -462,3 +462,97 @@ a {
     font-size: 22px;
   }
 }
+.workflow-panel > .row {
+  margin-bottom: 12px;
+}
+.workflow-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  margin-top: 24px;
+}
+.workflow-section {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.workflow-section h3 {
+  font-size: 15px;
+}
+.stock-results,
+.workflow-results {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 20px;
+}
+.stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+}
+.stock-card {
+  background: #11161e;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.stock-card img,
+.stock-placeholder {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  background: #0b0d11;
+  border-radius: 5px;
+}
+.stock-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+.stock-card h4 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+.stock-card a {
+  font-size: 11px;
+}
+.workflow-results audio {
+  width: min(100%, 450px);
+  display: block;
+  margin: 10px 0;
+}
+.workflow-results details {
+  font-size: 12px;
+  margin: 12px 0;
+}
+.caption-result {
+  max-height: 200px;
+  overflow: auto;
+  background: #11161e;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+.scene-entry {
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.scene-entry .scene-card {
+  flex: 1;
+}
+.scene-reorder {
+  display: flex;
+  gap: 4px;
+}
+.scene-reorder button {
+  flex: 1;
+  padding: 4px;
+  font-size: 13px;
+}
+@media (max-width: 850px) {
+  .workflow-columns {
+    grid-template-columns: 1fr;
+  }
+}
