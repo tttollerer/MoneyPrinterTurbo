@@ -140,6 +140,10 @@ def render_manifest(store, p, base_url):
         include(aid)
         take = next((t for t in scene.takes if t.id == scene.selected_take_id), None)
         duration = max(1, round(scene.duration_s * p.format.fps))
+        if assets[aid]["kind"] == "video":
+            actual_length = probe_duration(store.asset_path(aid))
+            if math.ceil(actual_length * p.format.fps - 1e-6) < duration:
+                raise ValueError(f"{scene.title}: Clip ist nur {actual_length:.2f}s lang. Szenendauer verkürzen oder längeren Clip wählen.")
         if take and (take.end_asset_id or any(s.predecessor_scene_id == scene.id for s in p.scenes)):
             actual = take.parameters.get("actual_duration_s")
             if actual is not None and duration < math.ceil(float(actual) * p.format.fps - 1e-6):

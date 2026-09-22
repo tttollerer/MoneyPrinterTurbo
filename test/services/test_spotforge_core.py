@@ -192,3 +192,14 @@ def test_script_and_brief_edits_reset_their_approval_gates(client):
     assert res.json()["gates"]["script"] == "todo"
     res = client.patch(f"/api/projects/{p['id']}",json={"brief":"Neue Zielgruppe"})
     assert res.json()["gates"]["concept"] == "todo"
+
+
+def test_short_local_clip_cannot_silently_freeze_for_rest_of_scene(client, monkeypatch):
+    monkeypatch.setattr("spotforge.api.probe_duration", lambda _: 2.0)
+    store = client.app.state.store
+    asset = store.add_asset(b"fixture", "clip.mp4", "video", "video/mp4")
+    p = Project(scenes=[Scene(mode="local",source_asset_id=asset.id,duration_s=5)])
+    store.write("projects",p.id,p)
+    res = client.get(f"/api/projects/{p.id}/manifest")
+    assert res.status_code == 422
+    assert "Clip ist nur 2.00s lang" in res.json()["detail"]
