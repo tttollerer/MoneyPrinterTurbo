@@ -122,3 +122,26 @@ def test_render_only_brand_change_preserves_generated_scenes(setup):
     response = client.post(f"/api/projects/{project.id}/brand", json={"brand_id": first["id"]})
     assert response.status_code == 200
     assert response.json()["scenes"][0]["stale"] is False
+
+
+def test_interrupted_latest_pointer_write_preserves_orphan_and_allows_next_save(setup, monkeypatch):
+    store, client = setup
+    first = client.post("/api/brands", json={"name": "Fixture"}).json()
+    write = store.write
+    def interrupted_write(collection, key, value):
+        if collection == "brands":
+            raise OSError("Simulated interruption before latest pointer update")
+        return write(collection, key, value)
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "write", interrupted_write)
+        with pytest.raises(OSError, match="Simulated interruption"):
+            client.post(f"/api/brands/{first['id']}/versions", json={"tone": "orphan"})
+    orphan = client.get(f"/api/brands/{first['id']}?version=2").json()
+    assert orphan["tone"] == "orphan"
+    assert client.get(f"/api/brands/{first['id']}").json() == first
+    saved = client.post(f"/api/brands/{first['id']}/versions", json={"tone": "new save"})
+    assert saved.status_code == 201
+    assert saved.json()["version"] == 3
+    assert client.get(f"/api/brands/{first['id']}?version=2").json() == orphan
+    assert client.get(f"/api/brands/{first['id']}?version=1").json() == first
+    assert client.get(f"/api/brands/{first['id']}").json() == saved.json()
