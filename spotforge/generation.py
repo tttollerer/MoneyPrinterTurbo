@@ -6,6 +6,8 @@ Polling and downloads may be resumed independently using the saved request ID.
 import base64
 import hashlib
 import io
+import json
+import math
 import os
 import re
 import subprocess
@@ -237,7 +239,7 @@ class GenerationService:
             self._save(job)
             return job
 
-    def resume(self, job_id, confirmed):
+    def resume(self, job_id, confirmed, provider_request_id=None):
         if not confirmed:
             raise GenerationError("Fortsetzung bitte bestätigen; ein neuer Auftrag wird nicht erzeugt.", 409)
         if not os.environ.get("FAL_KEY"):
@@ -246,6 +248,15 @@ class GenerationService:
             job = Job.model_validate(self.store.read("jobs", job_id))
             if job.kind != "generation":
                 raise GenerationError("Kein Generierungsauftrag.")
+            if provider_request_id is not None:
+                if job.state != "unknown" or job.provider_request_id:
+                    raise GenerationError("Eine Anbieter-ID darf nur einem ungeklärten Auftrag ohne ID zugeordnet werden.", 409)
+                if not re.fullmatch(r"[a-zA-Z0-9_-]{1,200}", provider_request_id):
+                    raise GenerationError("Ungültige Anbieter-ID; bitte nur die Request-ID aus dem Anbieter-Dashboard eingeben.")
+                job.provider_request_id = provider_request_id
+                job.input_snapshot["reconciliation"] = {"source": "explicit_user", "confirmed_at": now()}
+                job.state = "interrupted"
+                self._save(job)
             if job.state == "complete":
                 return job
             if not job.provider_request_id:
@@ -357,10 +368,14 @@ class GenerationService:
             target = Path(tmp) / "clip.mp4"
             target.write_bytes(content)
             probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-                                    "stream=codec_type", "-of", "csv=p=0", str(target)],
+                                    "stream=codec_type,width,height:format=duration", "-of", "json", str(target)],
                                    check=True, capture_output=True, text=True, timeout=30)
-            if "video" not in probe.stdout:
-                raise ValueError("No video stream")
+            info = json.loads(probe.stdout)
+            stream = next((s for s in info.get("streams", []) if s.get("codec_type") == "video"), None)
+            duration = float(info.get("format", {}).get("duration", 0))
+            if not stream or not math.isfinite(duration) or duration <= 0:
+                raise ValueError("Missing video stream or duration")
+            measured = {"actual_duration_s": duration, "width": stream["width"], "height": stream["height"]}
         with self.store.lock:
             project = Project.model_validate(self.store.read("projects", job.project_id))
             scene = _scene(project, job.scene_id)
@@ -373,7 +388,7 @@ class GenerationService:
                 snap = job.input_snapshot
                 take = Take(asset_id=asset.id, model=MODEL, prompt=snap["effective_prompt"],
                             parameters={"duration": snap["scene"]["duration_s"], "mode": snap["effective_mode"],
-                                        "input_assets": {aid: data["sha256"] for aid, data in snap["assets"].items()}},
+                                        "input_assets": {aid: data["sha256"] for aid, data in snap["assets"].items()}, **measured},
                             start_asset_id=snap["start_asset_id"], end_asset_id=snap["end_asset_id"],
                             predecessor_take_id=(snap["predecessor"] or {}).get("take_id"),
                             brand_snapshot=snap["brand_snapshot"], provider_request_id=job.provider_request_id,
@@ -390,7 +405,8 @@ class GenerationService:
                     _invalidate_descendants(project, scene.id)
                 elif not unchanged:
                     scene.stale = True
-                project.gates.update({"clips": "pending", "final": "pending"})
+                if project.recipe == "spot":
+                    project.gates.update({"clips": "todo", "final": "todo"})
                 project.render = {}
                 project.revision += 1
                 self.store.write("projects", project.id, project)
@@ -408,6 +424,7 @@ class GenerateRequest(BaseModel):
 class ResumeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     confirmed: bool
+    provider_request_id: str | None = None
 
 
 def create_router(store):
@@ -437,7 +454,7 @@ def create_router(store):
 
     @router.post("/jobs/{job_id}/resume", status_code=202)
     def resume(job_id: str, body: ResumeRequest):
-        job = perform(lambda: service.resume(job_id, body.confirmed))
+        job = perform(lambda: service.resume(job_id, body.confirmed, body.provider_request_id))
         if job.state != "complete":
             perform(lambda: service.launch(job.id, resume=True))
         return job

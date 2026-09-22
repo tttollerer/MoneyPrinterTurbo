@@ -137,6 +137,9 @@ def test_inputs_persisted_before_submit_and_take_snapshots(fixture, video):
     assert take["brand_snapshot"]["version"] == 1
     assert take["cost"]["amount"] is None
     assert take["provider_request_id"] == "request-test"
+    assert take["parameters"]["actual_duration_s"] == 1
+    assert take["parameters"]["width"] == 360
+    assert store.read("projects", project.id)["gates"] == {}
 
 
 def assert_submitting(store, job_id):
@@ -270,3 +273,36 @@ def test_explicit_rejection_is_failed_not_unknown(fixture):
     job = svc.start(project.id, project.scenes[0].id, True, 1)
     svc.run(job.id)
     assert store.read("jobs", job.id)["state"] == "failed"
+
+
+def test_unknown_submission_can_reconcile_explicit_id_without_resubmitting(fixture, video):
+    store, project, _, _ = fixture
+    provider = FakeProvider(video)
+    provider.submit_error = TimeoutError()
+    svc = service(store, provider)
+    job = svc.start(project.id, project.scenes[0].id, True, 1)
+    svc.run(job.id)
+    with pytest.raises(GenerationError, match="Fortsetzung"):
+        svc.resume(job.id, False, "request-test")
+    with pytest.raises(GenerationError, match="Ungültige Anbieter-ID"):
+        svc.resume(job.id, True, "https://private.example/id")
+    svc.resume(job.id, True, "request-test")
+    with pytest.raises(GenerationError, match="ungeklärten"):
+        svc.resume(job.id, True, "different-request")
+    svc.run(job.id, resume=True)
+    result = store.read("jobs", job.id)
+    assert result["state"] == "complete"
+    assert result["input_snapshot"]["reconciliation"]["source"] == "explicit_user"
+    assert len(provider.submissions) == 1
+
+
+def test_spot_generation_invalidates_only_downstream_gates(fixture, video):
+    store, project, _, _ = fixture
+    project.recipe = "spot"
+    project.gates = dict.fromkeys(["concept", "script", "storyboard", "clips", "final"], "approved")
+    store.write("projects", project.id, project)
+    svc = service(store, FakeProvider(video))
+    job = svc.start(project.id, project.scenes[0].id, True, 1)
+    svc.run(job.id)
+    gates = store.read("projects", project.id)["gates"]
+    assert gates == {"concept": "approved", "script": "approved", "storyboard": "approved", "clips": "todo", "final": "todo"}
