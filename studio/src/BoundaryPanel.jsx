@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { assetUrl, request } from "./api.js";
-import { boundarySubmission, initialBoundaries } from "./campaign.js";
+import { boundarySubmission, initialBoundaries, boundaryTimes, formatStoryTime } from "./campaign.js";
 export default function BoundaryPanel({
   campaignId,
   motifKey,
@@ -27,6 +27,8 @@ export default function BoundaryPanel({
     );
     setConfirmed(false);
   };
+  const times = boundaryTimes(durations);
+  const timingChanged = project.scenes.some((scene, index) => scene.duration_s !== durations[index]);
   let body, error;
   try {
     body = boundarySubmission({
@@ -45,12 +47,14 @@ export default function BoundaryPanel({
         Bild 1 → Bild 2 bildet Szene 1. Bild 2 → Bild 3 bildet Szene 2. Das
         gemeinsame Bild wird damit Ende der vorherigen und Start der nächsten
         Szene. Nur hochgeladene oder vorhandene Bilddateien zählen als
-        zugeordnet.
+        zugeordnet. Die Zeitangaben zeigen den Zeitpunkt in der Handlung: Bei
+        einem 5-Sekunden-Clip muss das nächste Bild den Zustand fünf Sekunden
+        später zeigen.
       </p>
       <div className="boundary-strip">
         {frames.map((id, index) => (
           <div className="boundary-card" key={index}>
-            <strong>Bild {index + 1}</strong>
+            <strong>Bild {index + 1} · {formatStoryTime(times?.[index])}</strong>
             {id ? (
               <img src={assetUrl(id)} alt={`Rahmenbild ${index + 1}`} />
             ) : (
@@ -109,10 +113,13 @@ export default function BoundaryPanel({
           + Weiteres Rahmenbild
         </button>
       )}
-      <datalist id="clip-durations">
-        <option value="5" />
-        <option value="10" />
-      </datalist>
+      {timingChanged && (
+        <p className="notice">
+          Die Zeitplanung wurde geändert. Prüfe alle folgenden Bilder: Bewegung,
+          Figuren und sichtbare Veränderungen müssen zur neuen Laufzeit passen.
+          Vorhandene Bilder werden nicht automatisch neu erzeugt.
+        </p>
+      )}
       {project.scenes.some(
         (scene, index) =>
           index > 0 &&
@@ -129,7 +136,7 @@ export default function BoundaryPanel({
         {prompts.map((prompt, index) => (
           <div className="grid" key={index}>
             <label className="field">
-              Szene {index + 1} · Bild {index + 1} → {index + 2}
+              Szene {index + 1} · {formatStoryTime(times?.[index])} → {formatStoryTime(times?.[index + 1])}
               <textarea
                 rows="2"
                 value={prompt}
@@ -151,7 +158,6 @@ export default function BoundaryPanel({
                 min="0.1"
                 max="120"
                 step="0.1"
-                list="clip-durations"
                 value={durations[index]}
                 onChange={(event) => {
                   setDurations((current) =>
@@ -162,7 +168,7 @@ export default function BoundaryPanel({
                   setConfirmed(false);
                 }}
               />
-              <small>Für Kling sind 5 oder 10 Sekunden vorgesehen.</small>
+              <small>Seedance 2.5: 4–30 ganze Sekunden. Kling: 5 oder 10 Sekunden. Das Modell wird pro Szene gewählt.</small>
             </label>
           </div>
         ))}

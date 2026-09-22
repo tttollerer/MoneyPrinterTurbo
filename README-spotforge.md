@@ -49,7 +49,7 @@ Die Originale bleiben unverändert; jeder Import erstellt ein neues Projekt. Fr�
 
 ## Start- und Endbilder
 
-Der erste Adapter unterstützt **Kling 2.5 Turbo Pro via fal** mit 5 oder 10 Sekunden. Unterstützt werden ein Startbild sowie Start- und Endbild gemeinsam. Ein Endbild allein benötigt zusätzlich ein ausdrücklich ausgewähltes Startbild; dafür gibt es einen Hinweis im Editor. Eine automatische Erzeugung dieses zusätzlichen Startbilds und reine Text-zu-Video-Modelle folgen später.
+Das bevorzugte Modell ist **Seedance 2.5 US via fal** mit festen Laufzeiten von 4 bis 30 Sekunden, 480p/720p und optionalem generierten Ton. **Kling 2.5 Turbo Pro** bleibt für bestehende Projekte mit 5 oder 10 Sekunden verfügbar. Unterstützt werden ein Startbild sowie Start- und Endbild gemeinsam. Ein Endbild allein benötigt zusätzlich ein ausdrücklich ausgewähltes Startbild; dafür gibt es einen Hinweis im Editor. Eine automatische Erzeugung dieses zusätzlichen Startbilds und reine Text-zu-Video-Modelle folgen später.
 
 Referenzen müssen PNG, JPEG oder WebP sein und zum Seitenverhältnis des Projekts passen. Alternativ lässt sich der letzte Frame eines ausgewählten Takes der vorherigen Szene übernehmen. Änderungen am Vorgänger kennzeichnen abhängige Szenen als veraltet; vor dem Export müssen sie geprüft oder neu erzeugt werden. Frühere Takes bleiben erhalten. Die Bilder steuern das KI-Modell, garantieren jedoch keine pixelgenaue Übereinstimmung. Ein Endbild-Take darf im Schnitt nicht vor seinem Ende gekürzt werden.
 

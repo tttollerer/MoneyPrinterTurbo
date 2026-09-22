@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   boundarySubmission,
+  boundaryTimes,
+  formatStoryTime,
   initialBoundaries,
   motifProgress,
 } from "../src/campaign.js";
@@ -104,4 +106,14 @@ test("local selected source is reviewable without creating an artificial take", 
     }).phase,
     "storyboard",
   );
+});
+
+test("boundary story times accumulate mixed clip durations without floating drift", () => {
+  assert.deepEqual(boundaryTimes([5, 10, 4, 30]), [0, 5, 15, 19, 49]);
+  assert.deepEqual(boundaryTimes([0.1, 0.2, 59.7]), [0, 0.1, 0.3, 60]);
+  assert.equal(formatStoryTime(65), "01:05.0");
+  assert.equal(formatStoryTime(59.96), "01:00.0");
+  assert.deepEqual(boundaryTimes([1.234567, 5]), [0, 1.234567, 6.234567]);
+  assert.equal(boundaryTimes([5, NaN]), null);
+  assert.equal(boundaryTimes([0]), null);
 });

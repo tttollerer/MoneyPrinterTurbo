@@ -633,6 +633,26 @@ export default function CampaignPanel({
                 >
                   JSON exportieren
                 </button>
+                <button
+                  disabled={busy}
+                  onClick={() => act(async () => {
+                    const result = await request(`/campaigns/${campaign.id}/export`);
+                    const blob = new Blob([JSON.stringify({
+                      campaign_id: campaign.id,
+                      title: campaign.title,
+                      time_basis: "Sekunden innerhalb der Handlung; aus den aktuellen Clipdauern berechnet",
+                      timelines: result.timelines,
+                    }, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const anchor = document.createElement("a");
+                    anchor.href = url;
+                    anchor.download = `${campaign.title.replace(/[^a-zA-Z0-9_-]/g, "-")}-Zeitplan.json`;
+                    anchor.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  })}
+                >
+                  Zeitplan exportieren
+                </button>
               </div>
             </div>
             <p>

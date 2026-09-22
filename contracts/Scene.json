@@ -184,6 +184,29 @@
       "title": "Model",
       "type": "string"
     },
+    "resolution": {
+      "default": "720p",
+      "enum": [
+        "480p",
+        "720p"
+      ],
+      "title": "Resolution",
+      "type": "string"
+    },
+    "generate_audio": {
+      "default": true,
+      "title": "Generate Audio",
+      "type": "boolean"
+    },
+    "bitrate_mode": {
+      "default": "standard",
+      "enum": [
+        "standard",
+        "high"
+      ],
+      "title": "Bitrate Mode",
+      "type": "string"
+    },
     "takes": {
       "items": {
         "$ref": "#/$defs/Take"

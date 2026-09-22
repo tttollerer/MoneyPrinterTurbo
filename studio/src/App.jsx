@@ -6,7 +6,7 @@ import WorkflowPanel from "./WorkflowPanel.jsx";
 const CampaignPanel = lazy(() => import("./CampaignPanel.jsx"));
 const ProviderPanel = lazy(() => import("./ProviderPanel.jsx"));
 const BoundaryPanel = lazy(() => import("./BoundaryPanel.jsx"));
-import { PHASES } from "./campaign.js";
+import { PHASES, DEFAULT_VIDEO_MODEL } from "./campaign.js";
 import { reorderedSceneIds, jobLabel, jobStateLabel } from "./workflow.js";
 const brandModules = import.meta.glob("./BrandPanel.jsx", { eager: true });
 const BrandPanel = Object.values(brandModules)[0]?.default;
@@ -91,6 +91,7 @@ function SceneEditor({
   const model = models.find((m) => m.id === draft.model);
   const supported = !!model?.modes?.includes(draft.mode);
   const configured = model?.configured !== false;
+  const durationSupported = !!model?.durations?.includes(draft.duration_s);
   const patch = () =>
     Object.fromEntries(
       [
@@ -103,6 +104,9 @@ function SceneEditor({
         "predecessor_scene_id",
         "source_asset_id",
         "model",
+        "resolution",
+        "generate_audio",
+        "bitrate_mode",
         "onscreen_text",
       ].map((k) => [k, draft[k]]),
     );
@@ -231,6 +235,37 @@ function SceneEditor({
               ))}
             </select>
           </label>
+          {!!model?.resolutions?.length && (
+            <div className="grid">
+              <label className="field">
+                Auflösung
+                <select value={draft.resolution || "720p"} onChange={(e) => edit("resolution", e.target.value)}>
+                  {model.resolutions.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+              {!!model?.bitrate_modes?.length && (
+                <label className="field">
+                  Videoqualität
+                  <select value={draft.bitrate_mode || "standard"} onChange={(e) => edit("bitrate_mode", e.target.value)}>
+                    {model.bitrate_modes.map((value) => <option key={value} value={value}>{value === "high" ? "Hohe Bitrate" : "Standard"}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+          {model?.generate_audio && (
+            <label className="check">
+              <input type="checkbox" checked={draft.generate_audio ?? true} onChange={(e) => edit("generate_audio", e.target.checked)} />
+              Ton passend zur Szene erzeugen. Für den Export außerdem unter Audio
+              „Originalton der Clips verwenden“ aktivieren.
+            </label>
+          )}
+          {!durationSupported && model && (
+            <p className="notice">
+              Dieses Modell unterstützt feste Laufzeiten von {model.durations?.join(", ")} Sekunden.
+              Passe die Dauer und die Bildfolge an, bevor du die Szene erzeugst.
+            </p>
+          )}
           {draft.mode === "end" && (
             <p className="notice">
               Nur ein Endbild funktioniert nur mit einem Modell, das diesen
@@ -298,7 +333,7 @@ function SceneEditor({
         </button>
         {draft.mode !== "local" && (
           <button
-            disabled={busy || changed || !supported || !configured}
+            disabled={busy || changed || !supported || !configured || !durationSupported}
             onClick={() => setConfirm(true)}
           >
             Video erzeugen …
@@ -327,7 +362,7 @@ function SceneEditor({
           <div className="row">
             <button
               className="primary"
-              disabled={busy || changed || !supported || !configured}
+              disabled={busy || changed || !supported || !configured || !durationSupported}
               onClick={() => {
                 setConfirm(false);
                 onGenerate();
@@ -1077,6 +1112,7 @@ export default function App() {
                       onClick={async () => {
                         const p = await change("/scenes", {
                           title: `Szene ${project.scenes.length + 1}`,
+                          model: DEFAULT_VIDEO_MODEL,
                           mode: "local",
                         });
                         if (p) setActive(p.scenes.at(-1).id);
