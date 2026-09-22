@@ -1,0 +1,395 @@
+{
+  "$defs": {
+    "Audio": {
+      "additionalProperties": false,
+      "properties": {
+        "narration_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Narration Asset Id"
+        },
+        "music_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Music Asset Id"
+        },
+        "narration_gain": {
+          "default": 1,
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Narration Gain",
+          "type": "number"
+        },
+        "music_gain": {
+          "default": 0.15,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Music Gain",
+          "type": "number"
+        },
+        "clip_audio": {
+          "default": false,
+          "title": "Clip Audio",
+          "type": "boolean"
+        }
+      },
+      "title": "Audio",
+      "type": "object"
+    },
+    "Brand": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "colors": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Colors",
+          "type": "object"
+        },
+        "font_family": {
+          "default": "Arial",
+          "title": "Font Family",
+          "type": "string"
+        },
+        "font_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Font Asset Id"
+        },
+        "logo_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logo Asset Id"
+        },
+        "logo_position": {
+          "default": "top-right",
+          "enum": [
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right"
+          ],
+          "title": "Logo Position",
+          "type": "string"
+        },
+        "safe_margin": {
+          "default": 0.07,
+          "maximum": 0.25,
+          "minimum": 0,
+          "title": "Safe Margin",
+          "type": "number"
+        },
+        "caption_style": {
+          "default": "sentence",
+          "enum": [
+            "sentence",
+            "karaoke"
+          ],
+          "title": "Caption Style",
+          "type": "string"
+        },
+        "language": {
+          "default": "de",
+          "title": "Language",
+          "type": "string"
+        },
+        "tone": {
+          "default": "",
+          "title": "Tone",
+          "type": "string"
+        },
+        "visual_style": {
+          "default": "",
+          "title": "Visual Style",
+          "type": "string"
+        },
+        "rules": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rules",
+          "type": "array"
+        },
+        "forbidden_claims": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Forbidden Claims",
+          "type": "array"
+        },
+        "required_text": {
+          "default": "",
+          "title": "Required Text",
+          "type": "string"
+        },
+        "document_asset_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Document Asset Ids",
+          "type": "array"
+        },
+        "locked_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Locked Fields",
+          "type": "array"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Brand",
+      "type": "object"
+    },
+    "Cue": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "start_ms": {
+          "minimum": 0,
+          "title": "Start Ms",
+          "type": "integer"
+        },
+        "end_ms": {
+          "exclusiveMinimum": 0,
+          "title": "End Ms",
+          "type": "integer"
+        },
+        "words": {
+          "items": {
+            "$ref": "#/$defs/Word"
+          },
+          "title": "Words",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "start_ms",
+        "end_ms"
+      ],
+      "title": "Cue",
+      "type": "object"
+    },
+    "Format": {
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "default": 1080,
+          "maximum": 3840,
+          "minimum": 128,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "default": 1920,
+          "maximum": 3840,
+          "minimum": 128,
+          "title": "Height",
+          "type": "integer"
+        },
+        "fps": {
+          "default": 30,
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        }
+      },
+      "title": "Format",
+      "type": "object"
+    },
+    "RenderScene": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "asset_id": {
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "from_frame": {
+          "minimum": 0,
+          "title": "From Frame",
+          "type": "integer"
+        },
+        "duration_frames": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Frames",
+          "type": "integer"
+        },
+        "onscreen_text": {
+          "default": "",
+          "title": "Onscreen Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "asset_id",
+        "from_frame",
+        "duration_frames"
+      ],
+      "title": "RenderScene",
+      "type": "object"
+    },
+    "Word": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "start_ms": {
+          "minimum": 0,
+          "title": "Start Ms",
+          "type": "integer"
+        },
+        "end_ms": {
+          "exclusiveMinimum": 0,
+          "title": "End Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "text",
+        "start_ms",
+        "end_ms"
+      ],
+      "title": "Word",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "project_revision": {
+      "title": "Project Revision",
+      "type": "integer"
+    },
+    "format": {
+      "$ref": "#/$defs/Format"
+    },
+    "duration_frames": {
+      "exclusiveMinimum": 0,
+      "title": "Duration Frames",
+      "type": "integer"
+    },
+    "brand": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Brand"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "assets": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Assets",
+      "type": "object"
+    },
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/RenderScene"
+      },
+      "title": "Scenes",
+      "type": "array"
+    },
+    "audio": {
+      "$ref": "#/$defs/Audio"
+    },
+    "captions": {
+      "items": {
+        "$ref": "#/$defs/Cue"
+      },
+      "title": "Captions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "project_revision",
+    "format",
+    "duration_frames",
+    "assets",
+    "scenes"
+  ],
+  "title": "RenderManifest",
+  "type": "object"
+}

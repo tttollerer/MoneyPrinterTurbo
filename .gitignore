@@ -45,3 +45,14 @@ htmlcov/
 
 # Claude Code 订阅令牌（docker compose 自动读取），禁止提交
 .env
+
+# SpotForge runtime and builds
+!CLAUDE.md
+/spotforge-data/
+/Ausgaben/
+/studio/dist/
+/renderer/dist/
+/renderer/.remotion/
+/.uv-cache/
+/.pytest_cache/
+/.ruff_cache/
