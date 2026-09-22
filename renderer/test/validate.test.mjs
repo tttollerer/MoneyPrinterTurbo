@@ -1,0 +1,47 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { validateManifest } from "../validate.mjs";
+const fixture = () => ({
+  schema_version: 1,
+  format: { width: 320, height: 180, fps: 30 },
+  duration_frames: 60,
+  assets: { clip: { url: "http://127.0.0.1/clip.mp4", kind: "video" } },
+  scenes: [{ asset_id: "clip", from_frame: 0, duration_frames: 60 }],
+  audio: {},
+  captions: [],
+});
+test("valid continuous timeline references one clip", () =>
+  assert.equal(validateManifest(fixture()).length, 1));
+test("missing required font fails closed", () => {
+  const m = fixture();
+  m.brand = { font_asset_id: "missing" };
+  assert.throws(() => validateManifest(m), /asset missing/);
+});
+test("scene gaps cannot produce unnoticed blank frames", () => {
+  const m = fixture();
+  m.scenes[0].from_frame = 1;
+  assert.throws(() => validateManifest(m), /contiguous/);
+});
+test("karaoke cannot invent word timing from sentence timing", () => {
+  const m = fixture();
+  m.brand = { caption_style: "karaoke" };
+  m.captions = [{ text: "hello", start_ms: 0, end_ms: 1000 }];
+  assert.throws(() => validateManifest(m), /word timings/);
+});
+test("word timestamps stay inside their cue", () => {
+  const m = fixture();
+  m.captions = [
+    {
+      text: "hello",
+      start_ms: 100,
+      end_ms: 1000,
+      words: [{ text: "hello", start_ms: 0, end_ms: 1000 }],
+    },
+  ];
+  assert.throws(() => validateManifest(m), /word outside/);
+});
+test("local filesystem URL cannot leak into a browser render", () => {
+  const m = fixture();
+  m.assets.clip.url = "file:///private/clip.mp4";
+  assert.throws(() => validateManifest(m), /HTTP/);
+});

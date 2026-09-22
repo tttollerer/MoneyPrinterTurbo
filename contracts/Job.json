@@ -1,0 +1,104 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "scene_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scene Id"
+    },
+    "kind": {
+      "enum": [
+        "generation",
+        "render",
+        "speech",
+        "stock_import"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "state": {
+      "default": "queued",
+      "enum": [
+        "queued",
+        "submitting",
+        "running",
+        "complete",
+        "failed",
+        "interrupted",
+        "unknown"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "progress": {
+      "default": 0,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Progress",
+      "type": "number"
+    },
+    "provider_request_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Request Id"
+    },
+    "input_snapshot": {
+      "additionalProperties": true,
+      "title": "Input Snapshot",
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": true,
+      "title": "Result",
+      "type": "object"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "kind"
+  ],
+  "title": "Job",
+  "type": "object"
+}

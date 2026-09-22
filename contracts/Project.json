@@ -1,0 +1,601 @@
+{
+  "$defs": {
+    "Audio": {
+      "additionalProperties": false,
+      "properties": {
+        "narration_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Narration Asset Id"
+        },
+        "music_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Music Asset Id"
+        },
+        "narration_gain": {
+          "default": 1,
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Narration Gain",
+          "type": "number"
+        },
+        "music_gain": {
+          "default": 0.15,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Music Gain",
+          "type": "number"
+        },
+        "clip_audio": {
+          "default": false,
+          "title": "Clip Audio",
+          "type": "boolean"
+        }
+      },
+      "title": "Audio",
+      "type": "object"
+    },
+    "Brand": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "colors": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Colors",
+          "type": "object"
+        },
+        "font_family": {
+          "default": "Arial",
+          "title": "Font Family",
+          "type": "string"
+        },
+        "font_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Font Asset Id"
+        },
+        "logo_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logo Asset Id"
+        },
+        "logo_position": {
+          "default": "top-right",
+          "enum": [
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right"
+          ],
+          "title": "Logo Position",
+          "type": "string"
+        },
+        "safe_margin": {
+          "default": 0.07,
+          "maximum": 0.25,
+          "minimum": 0,
+          "title": "Safe Margin",
+          "type": "number"
+        },
+        "caption_style": {
+          "default": "sentence",
+          "enum": [
+            "sentence",
+            "karaoke"
+          ],
+          "title": "Caption Style",
+          "type": "string"
+        },
+        "language": {
+          "default": "de",
+          "title": "Language",
+          "type": "string"
+        },
+        "tone": {
+          "default": "",
+          "title": "Tone",
+          "type": "string"
+        },
+        "visual_style": {
+          "default": "",
+          "title": "Visual Style",
+          "type": "string"
+        },
+        "rules": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rules",
+          "type": "array"
+        },
+        "forbidden_claims": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Forbidden Claims",
+          "type": "array"
+        },
+        "required_text": {
+          "default": "",
+          "title": "Required Text",
+          "type": "string"
+        },
+        "document_asset_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Document Asset Ids",
+          "type": "array"
+        },
+        "locked_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Locked Fields",
+          "type": "array"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Brand",
+      "type": "object"
+    },
+    "Cue": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "start_ms": {
+          "minimum": 0,
+          "title": "Start Ms",
+          "type": "integer"
+        },
+        "end_ms": {
+          "exclusiveMinimum": 0,
+          "title": "End Ms",
+          "type": "integer"
+        },
+        "words": {
+          "items": {
+            "$ref": "#/$defs/Word"
+          },
+          "title": "Words",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "start_ms",
+        "end_ms"
+      ],
+      "title": "Cue",
+      "type": "object"
+    },
+    "Format": {
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "default": 1080,
+          "maximum": 3840,
+          "minimum": 128,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "default": 1920,
+          "maximum": 3840,
+          "minimum": 128,
+          "title": "Height",
+          "type": "integer"
+        },
+        "fps": {
+          "default": 30,
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        }
+      },
+      "title": "Format",
+      "type": "object"
+    },
+    "Scene": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "default": "Szene",
+          "title": "Title",
+          "type": "string"
+        },
+        "mode": {
+          "default": "local",
+          "enum": [
+            "text",
+            "start",
+            "end",
+            "start_end",
+            "local"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "prompt": {
+          "default": "",
+          "title": "Prompt",
+          "type": "string"
+        },
+        "duration_s": {
+          "default": 5,
+          "maximum": 120,
+          "minimum": 0.1,
+          "title": "Duration S",
+          "type": "number"
+        },
+        "start_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Asset Id"
+        },
+        "end_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Asset Id"
+        },
+        "predecessor_scene_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Predecessor Scene Id"
+        },
+        "source_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Asset Id"
+        },
+        "model": {
+          "default": "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
+          "title": "Model",
+          "type": "string"
+        },
+        "takes": {
+          "items": {
+            "$ref": "#/$defs/Take"
+          },
+          "title": "Takes",
+          "type": "array"
+        },
+        "selected_take_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selected Take Id"
+        },
+        "stale": {
+          "default": false,
+          "title": "Stale",
+          "type": "boolean"
+        },
+        "onscreen_text": {
+          "default": "",
+          "title": "Onscreen Text",
+          "type": "string"
+        }
+      },
+      "title": "Scene",
+      "type": "object"
+    },
+    "Take": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "asset_id": {
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "model": {
+          "default": "local",
+          "title": "Model",
+          "type": "string"
+        },
+        "prompt": {
+          "default": "",
+          "title": "Prompt",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "start_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Asset Id"
+        },
+        "end_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Asset Id"
+        },
+        "predecessor_take_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Predecessor Take Id"
+        },
+        "brand_snapshot": {
+          "additionalProperties": true,
+          "title": "Brand Snapshot",
+          "type": "object"
+        },
+        "provider_request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Request Id"
+        },
+        "cost": {
+          "additionalProperties": true,
+          "title": "Cost",
+          "type": "object"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id"
+      ],
+      "title": "Take",
+      "type": "object"
+    },
+    "Word": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "start_ms": {
+          "minimum": 0,
+          "title": "Start Ms",
+          "type": "integer"
+        },
+        "end_ms": {
+          "exclusiveMinimum": 0,
+          "title": "End Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "text",
+        "start_ms",
+        "end_ms"
+      ],
+      "title": "Word",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "revision": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "title": {
+      "default": "Neues Video",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "brief": {
+      "default": "",
+      "maxLength": 8000,
+      "title": "Brief",
+      "type": "string"
+    },
+    "script": {
+      "default": "",
+      "maxLength": 12000,
+      "title": "Script",
+      "type": "string"
+    },
+    "recipe": {
+      "default": "free",
+      "enum": [
+        "free",
+        "spot"
+      ],
+      "title": "Recipe",
+      "type": "string"
+    },
+    "format": {
+      "$ref": "#/$defs/Format"
+    },
+    "brand_snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Brand"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/Scene"
+      },
+      "title": "Scenes",
+      "type": "array"
+    },
+    "audio": {
+      "$ref": "#/$defs/Audio"
+    },
+    "captions": {
+      "items": {
+        "$ref": "#/$defs/Cue"
+      },
+      "title": "Captions",
+      "type": "array"
+    },
+    "gates": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Gates",
+      "type": "object"
+    },
+    "render": {
+      "additionalProperties": true,
+      "title": "Render",
+      "type": "object"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "title": "Project",
+  "type": "object"
+}

@@ -1,0 +1,32 @@
+name: SpotForge studio and renderer
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Node 22 tests and production builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            renderer/package-lock.json
+            studio/package-lock.json
+      - run: npm --prefix renderer ci
+      - run: npm --prefix studio ci
+      - run: npm --prefix renderer test
+      - run: npm --prefix studio test
+      - run: npm --prefix renderer run build
+      - run: npm --prefix studio run build
+      - name: Validate Mac launcher syntax
+        run: bash -n start-spotforge.command

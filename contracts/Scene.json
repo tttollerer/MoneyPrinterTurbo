@@ -1,0 +1,219 @@
+{
+  "$defs": {
+    "Take": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "asset_id": {
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "model": {
+          "default": "local",
+          "title": "Model",
+          "type": "string"
+        },
+        "prompt": {
+          "default": "",
+          "title": "Prompt",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "start_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Asset Id"
+        },
+        "end_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Asset Id"
+        },
+        "predecessor_take_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Predecessor Take Id"
+        },
+        "brand_snapshot": {
+          "additionalProperties": true,
+          "title": "Brand Snapshot",
+          "type": "object"
+        },
+        "provider_request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Request Id"
+        },
+        "cost": {
+          "additionalProperties": true,
+          "title": "Cost",
+          "type": "object"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id"
+      ],
+      "title": "Take",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "default": "Szene",
+      "title": "Title",
+      "type": "string"
+    },
+    "mode": {
+      "default": "local",
+      "enum": [
+        "text",
+        "start",
+        "end",
+        "start_end",
+        "local"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "prompt": {
+      "default": "",
+      "title": "Prompt",
+      "type": "string"
+    },
+    "duration_s": {
+      "default": 5,
+      "maximum": 120,
+      "minimum": 0.1,
+      "title": "Duration S",
+      "type": "number"
+    },
+    "start_asset_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Start Asset Id"
+    },
+    "end_asset_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "End Asset Id"
+    },
+    "predecessor_scene_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Predecessor Scene Id"
+    },
+    "source_asset_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Asset Id"
+    },
+    "model": {
+      "default": "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
+      "title": "Model",
+      "type": "string"
+    },
+    "takes": {
+      "items": {
+        "$ref": "#/$defs/Take"
+      },
+      "title": "Takes",
+      "type": "array"
+    },
+    "selected_take_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selected Take Id"
+    },
+    "stale": {
+      "default": false,
+      "title": "Stale",
+      "type": "boolean"
+    },
+    "onscreen_text": {
+      "default": "",
+      "title": "Onscreen Text",
+      "type": "string"
+    }
+  },
+  "title": "Scene",
+  "type": "object"
+}
