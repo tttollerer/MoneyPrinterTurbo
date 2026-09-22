@@ -1,5 +1,6 @@
 """Local FastAPI surface. All mutable project state belongs to this process."""
 import asyncio
+import errno
 import io
 import json
 import math
@@ -220,6 +221,12 @@ def create_app(data_dir=None, output_dir=None):
     @app.exception_handler(ValueError)
     async def invalid(request, exc):
         return JSONResponse({"detail": str(exc)}, status_code=422)
+
+    @app.exception_handler(OSError)
+    async def storage_error(request, exc):
+        if exc.errno == errno.ENOSPC:
+            return JSONResponse({"detail": "Nicht genug freier Speicherplatz auf dem Mac. Platz schaffen und erneut versuchen."}, status_code=507)
+        return JSONResponse({"detail": "Lokaler Dateizugriff fehlgeschlagen. Speicher und Dateirechte prüfen."}, status_code=500)
 
     @app.exception_handler(ValidationError)
     async def validation(request, exc):
@@ -559,12 +566,14 @@ def create_app(data_dir=None, output_dir=None):
     from spotforge.importer import create_router as importer_router
     from spotforge.campaigns import create_router as campaign_router
     from spotforge.credentials_routes import create_router as credentials_router
+    from spotforge.batches import create_router as batch_router
     app.include_router(brand_router(store))
     app.include_router(generation_router(store), prefix="/api")
     app.include_router(workflow_router(store), prefix="/api")
     app.include_router(importer_router(store), prefix="/api")
     app.include_router(campaign_router(store), prefix="/api")
     app.include_router(credentials_router(store), prefix="/api")
+    app.include_router(batch_router(store), prefix="/api")
 
     @app.get("/{rest:path}")
     def frontend(rest: str):

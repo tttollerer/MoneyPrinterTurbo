@@ -153,6 +153,8 @@ class BatchService:
             # A known completed job may have finished after shutdown/pause. Its
             # exact, constrained output delta is the only accepted input update.
             for item in batch["items"]:
+                if item["status"] == "unknown" and not item.get("job_id"):
+                    raise HTTPException(409, "Mehrdeutige Anbieteraufträge ohne eindeutige Zuordnung. Manuell klären; keine erneute Übermittlung.")
                 if item.get("job_id") and item["status"] not in {"complete", "skipped", "cancelled"}:
                     job = Job.model_validate(self.store.read("jobs", item["job_id"]))
                     if job.state == "complete":
@@ -315,6 +317,8 @@ class BatchService:
                             self.save(batch)
                             return
                         if not self.generation_busy():
+                            if item["status"] == "unknown" and not item.get("job_id"):
+                                raise HTTPException(409, "Mehrdeutiger Anbieterauftrag. Keine erneute Übermittlung.")
                             self.check_inputs(batch)
                             if item.get("job_id"):
                                 job = self.generation.resume(item["job_id"], True, batch_id=batch_id)

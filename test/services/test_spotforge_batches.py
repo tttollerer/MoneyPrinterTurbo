@@ -90,6 +90,23 @@ def begin(service, project):
     return batch
 
 
+def test_ambiguous_recovered_jobs_cannot_be_submitted_again(setup):
+    store, generator, service, project = setup
+    batch = service.preview([project.id])
+    batch["state"] = "running"
+    store.write("batches", batch["id"], batch)
+    for _ in range(2):
+        job = Job(project_id=project.id, scene_id=project.scenes[0].id, kind="generation", state="failed",
+                  provider_request_id="known", input_snapshot={"batch_id": batch["id"]})
+        store.write("jobs", job.id, job)
+    recovered = BatchService(store, generator)
+    current = store.read("batches", batch["id"])
+    assert current["items"][0]["status"] == "unknown"
+    with pytest.raises(HTTPException, match="Mehrdeutige"):
+        recovered.confirm(batch["id"], True, batch["input_digest"], resume=True)
+    assert generator.starts == []
+
+
 def test_preview_is_durable_free_and_skips_current_selected_takes(setup):
     store, generator, service, project = setup
     asset = store.add_asset(b"local", "done.mp4", "video", "video/mp4")
