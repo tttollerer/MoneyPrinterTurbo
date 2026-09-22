@@ -1,0 +1,240 @@
+{
+  "$defs": {
+    "Format": {
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "default": 1080,
+          "maximum": 3840,
+          "minimum": 128,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "default": 1920,
+          "maximum": 3840,
+          "minimum": 128,
+          "title": "Height",
+          "type": "integer"
+        },
+        "fps": {
+          "default": 30,
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        }
+      },
+      "title": "Format",
+      "type": "object"
+    },
+    "Motif": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "variants": {
+          "items": {
+            "$ref": "#/$defs/Variant"
+          },
+          "title": "Variants",
+          "type": "array"
+        },
+        "frame_labels": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Frame Labels",
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/VariantOutput"
+          },
+          "title": "Outputs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "project_id"
+      ],
+      "title": "Motif",
+      "type": "object"
+    },
+    "Variant": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "audience": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Audience",
+          "type": "string"
+        },
+        "cta": {
+          "default": "",
+          "maxLength": 300,
+          "title": "Cta",
+          "type": "string"
+        },
+        "endcard_text": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Endcard Text",
+          "type": "string"
+        },
+        "endcard_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endcard Asset Id"
+        },
+        "duration_s": {
+          "default": 3,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Duration S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "title"
+      ],
+      "title": "Variant",
+      "type": "object"
+    },
+    "VariantOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "variant_key": {
+          "title": "Variant Key",
+          "type": "string"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "source_revision": {
+          "title": "Source Revision",
+          "type": "integer"
+        },
+        "variant_digest": {
+          "default": "",
+          "title": "Variant Digest",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "variant_key",
+        "project_id",
+        "source_revision"
+      ],
+      "title": "VariantOutput",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "revision": {
+      "default": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "brief": {
+      "default": "",
+      "title": "Brief",
+      "type": "string"
+    },
+    "format": {
+      "$ref": "#/$defs/Format"
+    },
+    "brand_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brand Id"
+    },
+    "brand_version": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brand Version"
+    },
+    "motifs": {
+      "items": {
+        "$ref": "#/$defs/Motif"
+      },
+      "title": "Motifs",
+      "type": "array"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "title": "Campaign",
+  "type": "object"
+}
