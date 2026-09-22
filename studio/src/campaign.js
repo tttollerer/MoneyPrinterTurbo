@@ -1,3 +1,22 @@
+export const DEFAULT_VIDEO_MODEL = "bytedance/seedance-2.5/us/image-to-video";
+
+// Story time: each boundary is the previous boundary plus its clip duration.
+export function boundaryTimes(durations) {
+  const times = [0];
+  for (const duration of durations) {
+    if (!Number.isFinite(duration) || duration < 0.1 || duration > 120)
+      return null;
+    times.push(Math.round((times.at(-1) + duration) * 1000) / 1000);
+  }
+  return times;
+}
+export function formatStoryTime(seconds) {
+  if (!Number.isFinite(seconds)) return "—";
+  const minutes = Math.floor(seconds / 60);
+  const remainder = (seconds % 60).toFixed(1).padStart(4, "0");
+  return `${String(minutes).padStart(2, "0")}:${remainder}`;
+}
+
 export const PHASES = [
   { id: "briefing", label: "Briefing" },
   { id: "storyboard", label: "Storyboard" },
@@ -73,6 +92,7 @@ export const campaignExample = {
       shots: [
         {
           title: "Szene 1",
+          model: DEFAULT_VIDEO_MODEL,
           prompt: "",
           duration_s: 5,
           start_frame: "frame-01.png",
