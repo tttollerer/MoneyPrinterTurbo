@@ -1,0 +1,6 @@
+{
+ "name":"spotforge-studio","version":"0.1.0","private":true,"type":"module",
+ "scripts":{"dev":"vite --host 127.0.0.1 --port 4832","build":"vite build","test":"node --test test/*.test.mjs","preview":"vite preview --host 127.0.0.1 --port 4832"},
+ "dependencies":{"@remotion/player":"4.0.502","remotion":"4.0.502","react":"19.2.8","react-dom":"19.2.8"},
+ "devDependencies":{"vite":"7.3.6","@vitejs/plugin-react":"5.2.0"}
+}
